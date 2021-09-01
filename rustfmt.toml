@@ -1,0 +1,6 @@
+hard_tabs = true
+imports_granularity = "Crate"
+newline_style = "Windows"
+normalize_comments = true
+overflow_delimited_expr = true
+reorder_impl_items = true
