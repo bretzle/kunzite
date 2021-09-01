@@ -13,9 +13,8 @@ impl Application for Emulator {
 	}
 
 	fn handle_event(&mut self, event: Event, running: &mut bool) -> Result<(), Self::Error> {
-		match event {
-			Event::Quit { .. } => *running = false,
-			_ => {}
+		if let Event::Quit { .. } = event {
+			*running = false
 		}
 
 		Ok(())
