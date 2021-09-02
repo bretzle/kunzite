@@ -4,3 +4,4 @@ newline_style = "Windows"
 normalize_comments = true
 overflow_delimited_expr = true
 reorder_impl_items = true
+format_strings = true
