@@ -107,7 +107,7 @@ impl Cpu {
 		if let Some(&opcode) = self.rom.get(self.pc) {
 			let info = DecodeInfo::new(self, opcode);
 
-			#[cfg(debug_assertions)]
+			#[cfg(all(debug_assertions, not(test)))]
 			println!("{:?}", info);
 
 			let inst = match opcode {
@@ -298,5 +298,47 @@ impl Cpu {
 			3 => Instruction::Set(y, reg),
 			_ => unreachable!(),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn compare(instructions: Vec<Instruction>, asm: &str) {
+		asm.lines()
+			.filter(|line| {
+				let line = line.trim();
+				!line.starts_with(';') && line.len() > 1
+			})
+			.map(|s| s.split(';').next().unwrap())
+			.enumerate()
+			.for_each(|(idx, line)| {
+				let calc = format!("{:?}", instructions[idx])
+					.to_lowercase()
+					.replace(' ', "");
+				let real = line.trim().to_lowercase().replace(' ', "");
+
+				assert_eq!(calc.trim(), real)
+			});
+	}
+
+	#[test]
+	fn test_decode_bootloader() {
+		const BOOTLOADER: &[u8; 256] = include_bytes!("../../../../roms/bootloader.gb");
+		const BOOTLOADER_ASM: &str = include_str!("../../../../roms/disassembly/bootloader.asm");
+
+		let mut rom = BOOTLOADER.to_vec();
+		rom.iter_mut()
+			.enumerate()
+			.filter(|(idx, _)| (0xA8..0xE0).contains(idx))
+			.for_each(|(_, val)| *val = 0);
+
+		let instructions = Cpu::decode_all(&rom)
+			.into_iter()
+			.map(|(_, inst)| inst)
+			.collect();
+
+		compare(instructions, BOOTLOADER_ASM);
 	}
 }
