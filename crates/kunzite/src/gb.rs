@@ -5,7 +5,8 @@ use color_eyre::Result;
 
 /// Brings all the components into a single package
 pub struct Gb {
-	cpu: Cpu,
+	/// the cpu
+	pub cpu: Cpu,
 	memory: Memory,
 	display: Display,
 }
@@ -27,6 +28,6 @@ impl Gb {
 
 	/// fully execute the next instruction
 	pub fn step(&mut self) {
-		self.cpu.step()
+		self.cpu.step(&mut self.memory)
 	}
 }

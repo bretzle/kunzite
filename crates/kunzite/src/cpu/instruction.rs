@@ -1,3 +1,5 @@
+//! TODO: Document this
+
 /// Instructions that the Gameboy can execute
 ///
 /// Naming tends to be tof the form: `ActionDestSrc` when there is ambiguity
@@ -251,6 +253,7 @@ impl std::fmt::Debug for Instruction {
 }
 
 impl Instruction {
+	/// the number of bytes the instruction takes up
 	pub fn size(&self) -> u16 {
 		match self {
 			Instruction::Nop => 1,
@@ -339,6 +342,7 @@ pub enum Register8 {
 	H,
 	L,
 	DerefHL,
+	F,
 }
 
 impl std::fmt::Debug for Register8 {
@@ -352,6 +356,7 @@ impl std::fmt::Debug for Register8 {
 			Self::H => write!(f, "H"),
 			Self::L => write!(f, "L"),
 			Self::DerefHL => write!(f, "(HL)"),
+			Self::F => unreachable!(),
 		}
 	}
 }
@@ -364,6 +369,18 @@ pub enum Register16 {
 	HL,
 	AF,
 	SP,
+}
+
+impl Register16 {
+	pub fn tear(&self) -> (Register8, Register8) {
+		match self {
+			Register16::BC => (Register8::B, Register8::C),
+			Register16::DE => (Register8::D, Register8::E),
+			Register16::HL => (Register8::H, Register8::L),
+			Register16::AF => (Register8::A, Register8::F),
+			Register16::SP => unreachable!(),
+		}
+	}
 }
 
 /// CPU flags

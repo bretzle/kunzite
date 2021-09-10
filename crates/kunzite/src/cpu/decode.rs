@@ -105,7 +105,7 @@ impl Cpu {
 		instructions
 	}
 
-	pub(super) fn parse_instruction(&self) -> Option<(u16, Instruction)> {
+	pub(crate) fn parse_instruction(&self) -> Option<(u16, Instruction)> {
 		let ret_pc = self.pc;
 		let rom = self.rom.as_ref().unwrap();
 

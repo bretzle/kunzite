@@ -1,50 +1,128 @@
 use std::ops::{Index, IndexMut};
 
-use super::instruction::{Flag, Register8};
+use super::instruction::{Flag, Register16, Register8};
 
-#[derive(Default)]
-pub struct Registers {
-	a: u8,
-	b: u8,
-	c: u8,
-	d: u8,
-	e: u8,
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Reg8s {
 	f: u8,
-	h: u8,
+	a: u8,
+	c: u8,
+	b: u8,
+	e: u8,
+	d: u8,
 	l: u8,
+	h: u8,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct Reg16s {
+	af: u16,
+	bc: u16,
+	de: u16,
+	hl: u16,
+	sp: u16,
+}
+
+#[repr(C)]
+pub union Registers {
+	reg8: Reg8s,
+	reg16: Reg16s,
 }
 
 impl Registers {
+	fn read(&self, reg: Register8) -> &u8 {
+		unsafe {
+			match reg {
+				Register8::A => &self.reg8.a,
+				Register8::B => &self.reg8.b,
+				Register8::C => &self.reg8.c,
+				Register8::D => &self.reg8.d,
+				Register8::E => &self.reg8.e,
+				Register8::H => &self.reg8.h,
+				Register8::L => &self.reg8.l,
+				Register8::DerefHL | Register8::F => todo!(),
+			}
+		}
+	}
+
+	fn read_mut(&mut self, reg: Register8) -> &mut u8 {
+		unsafe {
+			match reg {
+				Register8::A => &mut self.reg8.a,
+				Register8::B => &mut self.reg8.b,
+				Register8::C => &mut self.reg8.c,
+				Register8::D => &mut self.reg8.d,
+				Register8::E => &mut self.reg8.e,
+				Register8::H => &mut self.reg8.h,
+				Register8::L => &mut self.reg8.l,
+				Register8::DerefHL | Register8::F => todo!(),
+			}
+		}
+	}
+
+	fn read16(&self, reg: Register16) -> &u16 {
+		unsafe {
+			match reg {
+				Register16::BC => &self.reg16.bc,
+				Register16::DE => &self.reg16.de,
+				Register16::HL => &self.reg16.hl,
+				Register16::AF => &self.reg16.af,
+				Register16::SP => &self.reg16.sp,
+			}
+		}
+	}
+
+	fn read16_mut(&mut self, reg: Register16) -> &mut u16 {
+		unsafe {
+			match reg {
+				Register16::BC => &mut self.reg16.bc,
+				Register16::DE => &mut self.reg16.de,
+				Register16::HL => &mut self.reg16.hl,
+				Register16::AF => &mut self.reg16.af,
+				Register16::SP => &mut self.reg16.sp,
+			}
+		}
+	}
+
+	pub fn flags(&self) -> u8 {
+		unsafe { self.reg8.f }
+	}
+
 	pub fn flag(&self, flag: Flag) -> bool {
+		let f = unsafe { self.reg8.f };
 		match flag {
-			Flag::Z => self.f & 0x80 != 0,
-			Flag::NZ => self.f & 0x80 == 0,
-			Flag::N => self.f & 0x40 != 0,
-			Flag::H => self.f & 0x20 != 0,
-			Flag::C => self.f & 0x10 != 0,
-			Flag::NC => self.f & 0x10 == 0,
+			Flag::Z => f & 0x80 != 0,
+			Flag::NZ => f & 0x80 == 0,
+			Flag::N => f & 0x40 != 0,
+			Flag::H => f & 0x20 != 0,
+			Flag::C => f & 0x10 != 0,
+			Flag::NC => f & 0x10 == 0,
 		}
 	}
 
 	pub fn set_flag(&mut self, flag: Flag, val: u8) {
 		debug_assert!(val == 0 || val == 1);
 
+		let f = unsafe { &mut self.reg8.f };
+
 		match flag {
 			Flag::Z => {
-				self.f &= 0x7F;
-				self.f |= val << 7;
+				*f &= 0x7F;
+				*f |= val << 7;
 			}
 			Flag::N => {
-				self.f &= 0xBF;
-				self.f |= val << 6;
+				*f &= 0xBF;
+				*f |= val << 6;
 			}
 			Flag::H => {
-				self.f &= 0xDF;
-				self.f |= val << 5;
+				*f &= 0xDF;
+				*f |= val << 5;
 			}
 			Flag::C => {
-				self.f &= 0xEF;
-				self.f |= val << 4;
+				*f &= 0xEF;
+				*f |= val << 4;
 			}
 			_ => unreachable!(),
 		}
@@ -54,31 +132,35 @@ impl Registers {
 impl Index<Register8> for Registers {
 	type Output = u8;
 
-	fn index(&self, index: Register8) -> &Self::Output {
-		match index {
-			Register8::A => &self.a,
-			Register8::B => &self.b,
-			Register8::C => &self.c,
-			Register8::D => &self.d,
-			Register8::E => &self.e,
-			Register8::H => &self.h,
-			Register8::L => &self.l,
-			Register8::DerefHL => todo!(),
-		}
+	fn index(&self, reg: Register8) -> &Self::Output {
+		self.read(reg)
 	}
 }
 
 impl IndexMut<Register8> for Registers {
-	fn index_mut(&mut self, index: Register8) -> &mut Self::Output {
-		match index {
-			Register8::A => &mut self.a,
-			Register8::B => &mut self.b,
-			Register8::C => &mut self.c,
-			Register8::D => &mut self.d,
-			Register8::E => &mut self.e,
-			Register8::H => &mut self.h,
-			Register8::L => &mut self.l,
-			Register8::DerefHL => todo!(),
+	fn index_mut(&mut self, reg: Register8) -> &mut Self::Output {
+		self.read_mut(reg)
+	}
+}
+
+impl Index<Register16> for Registers {
+	type Output = u16;
+
+	fn index(&self, reg: Register16) -> &Self::Output {
+		self.read16(reg)
+	}
+}
+
+impl IndexMut<Register16> for Registers {
+	fn index_mut(&mut self, reg: Register16) -> &mut Self::Output {
+		self.read16_mut(reg)
+	}
+}
+
+impl Default for Registers {
+	fn default() -> Self {
+		Self {
+			reg16: Reg16s::default(),
 		}
 	}
 }

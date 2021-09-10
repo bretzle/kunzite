@@ -1,6 +1,6 @@
 //!
 
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 #![feature(exclusive_range_pattern)]
 #![feature(const_panic)]
 
@@ -9,6 +9,7 @@ pub mod display;
 pub mod emulator;
 pub mod gb;
 pub mod memory;
+mod util;
 
 use color_eyre::Result;
 use emulator::Emulator;
