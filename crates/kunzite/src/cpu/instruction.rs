@@ -212,7 +212,7 @@ impl std::fmt::Debug for Instruction {
 			Self::Rla => write!(f, "RLA"),
 			Self::Rrca => write!(f, "RRCA"),
 			Self::Rra => write!(f, "RRA"),
-			Self::StoreImm16AddrSp(arg0) => f.debug_tuple("StoreImm16AddrSp").field(arg0).finish(),
+			Self::StoreImm16AddrSp(arg0) => write!(f, "LD  ${:04X}, SP", arg0),
 			Self::AddHl(arg0) => f.debug_tuple("AddHl").field(arg0).finish(),
 			Self::Ret(arg0) => match arg0 {
 				Some(fl) => write!(f, "RET {:?}", fl),
@@ -251,7 +251,7 @@ impl std::fmt::Debug for Instruction {
 }
 
 impl Instruction {
-	pub fn size(&self) -> usize {
+	pub fn size(&self) -> u16 {
 		match self {
 			Instruction::Nop => 1,
 			Instruction::Stop => 2,
@@ -264,7 +264,7 @@ impl Instruction {
 			Instruction::LoadAFromReg16Addr(_) => 1,
 			Instruction::Mov8(_, _) => 1,
 			Instruction::Jr(_, _) => 2,
-			Instruction::Jp(_, _) => todo!(),
+			Instruction::Jp(_, _) => 3,
 			Instruction::Inc8(_) => 1,
 			Instruction::Dec8(_) => 1,
 			Instruction::Inc16(_) => 1,
@@ -290,21 +290,21 @@ impl Instruction {
 			Instruction::AddSp8(_) => 2,
 			Instruction::Daa => 1,
 			Instruction::Scf => 1,
-			Instruction::Cpl => todo!(),
-			Instruction::Ccf => todo!(),
+			Instruction::Cpl => 1,
+			Instruction::Ccf => 1,
 			Instruction::Rlca => 1,
 			Instruction::Rla => 1,
 			Instruction::Rrca => 1,
 			Instruction::Rra => 1,
-			Instruction::StoreImm16AddrSp(_) => todo!(),
+			Instruction::StoreImm16AddrSp(_) => 3,
 			Instruction::AddHl(_) => todo!(),
 			Instruction::Ret(_) => 1,
-			Instruction::Reti => todo!(),
+			Instruction::Reti => 1,
 			Instruction::Di => 1,
 			Instruction::Ei => 1,
 			Instruction::Call(_, _) => 3,
-			Instruction::JpHl => todo!(),
-			Instruction::Rst(_) => todo!(),
+			Instruction::JpHl => 1,
+			Instruction::Rst(_) => 1,
 			Instruction::LdHlSp8(_) => todo!(),
 			Instruction::LdSpHl => todo!(),
 			Instruction::StoreHA(_) => 2,
@@ -369,12 +369,16 @@ pub enum Register16 {
 /// CPU flags
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Flag {
-	/// Carry
-	C,
 	/// Zero
 	Z,
-	/// Not Carry
-	NC,
 	/// Not Zero
 	NZ,
+	/// Subtract
+	N,
+	/// Half-carry
+	H,
+	/// Carry
+	C,
+	/// Not Carry
+	NC,
 }

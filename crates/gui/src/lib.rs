@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 pub mod prelude {
 	pub use imgui::*;
 	pub use sdl2::event::Event;
+	pub use sdl2::keyboard::Keycode;
 }
 
 pub trait Application {

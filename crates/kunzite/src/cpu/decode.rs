@@ -5,7 +5,7 @@ use super::{
 use std::fmt::Debug;
 
 struct DecodeInfo {
-	pc: usize,
+	pc: u16,
 	x: u8,
 	y: u8,
 	z: u8,
@@ -19,16 +19,17 @@ struct DecodeInfo {
 impl DecodeInfo {
 	#[allow(clippy::many_single_char_names)]
 	pub fn new(cpu: &Cpu, opcode: u8) -> Self {
+		let rom = cpu.rom.as_ref().unwrap();
 		let x = (opcode >> 6) & 0x3;
 		let y = (opcode >> 3) & 0x7;
 		let z = opcode & 0x7;
 		let p = y >> 1;
 		let q = y % 2;
 
-		let d = cpu.rom[cpu.pc + 1] as i8;
-		let n = cpu.rom[cpu.pc + 1];
-		let nn = if cpu.pc + 2 < cpu.rom.len() {
-			((cpu.rom[cpu.pc + 2] as u16) << 8) | n as u16
+		let d = rom[cpu.pc as usize + 1] as i8;
+		let n = rom[cpu.pc as usize + 1];
+		let nn = if cpu.pc as usize + 2 < rom.len() {
+			((rom[cpu.pc as usize + 2] as u16) << 8) | n as u16
 		} else {
 			0
 		};
@@ -86,12 +87,15 @@ const R: [Register8; 8] = [
 impl Cpu {
 	/// Decodes a slice of a rom
 	/// effectively dissasembles a program
-	pub fn decode_all(data: &[u8]) -> Vec<(usize, Instruction)> {
+	///
+	/// Will panic if an invalid opcode is read
+	///
+	/// TODO: have parsing return an option to avoid panics
+	pub fn try_decode_all(data: &[u8]) -> Vec<(u16, Instruction)> {
 		let mut instructions = vec![];
-		let mut this = Self {
-			rom: data.to_vec(),
-			pc: 0,
-		};
+		let mut this = Self::default();
+
+		let _ = this.rom.insert(data.to_vec());
 
 		while let Some(inst) = this.parse_instruction() {
 			this.pc += inst.1.size();
@@ -101,17 +105,18 @@ impl Cpu {
 		instructions
 	}
 
-	fn parse_instruction(&self) -> Option<(usize, Instruction)> {
+	pub(super) fn parse_instruction(&self) -> Option<(u16, Instruction)> {
 		let ret_pc = self.pc;
+		let rom = self.rom.as_ref().unwrap();
 
-		if let Some(&opcode) = self.rom.get(self.pc) {
+		if let Some(&opcode) = rom.get(self.pc as usize) {
 			let info = DecodeInfo::new(self, opcode);
 
-			#[cfg(all(debug_assertions, not(test)))]
+			#[cfg(feature = "debug_opcode")]
 			println!("{:?}", info);
 
 			let inst = match opcode {
-				0xCB => self.parse_cb_inst(DecodeInfo::new(self, self.rom[self.pc + 1])),
+				0xCB => self.parse_cb_inst(DecodeInfo::new(self, rom[self.pc as usize + 1])),
 				_ => self.parse_normal_inst(info),
 			};
 
@@ -138,7 +143,7 @@ impl Cpu {
 			0 => match z {
 				0 => match y {
 					0 => Instruction::Nop,
-					1 => panic!("{:?}", info),
+					1 => Instruction::StoreImm16AddrSp(nn),
 					2 => Instruction::Stop,
 					3 => Instruction::Jr(None, d),
 					4..7 => Instruction::Jr(Some(CC[y as usize - 4]), d),
@@ -190,6 +195,7 @@ impl Cpu {
 			1 => match z {
 				6 => match y {
 					6 => Instruction::Halt,
+					4 => Instruction::Mov8(Register8::H, Register8::DerefHL),
 					_ => unreachable!(),
 				},
 				_ => Instruction::Mov8(R[y as usize], R[z as usize]),
@@ -334,7 +340,7 @@ mod tests {
 			.filter(|(idx, _)| (0xA8..0xE0).contains(idx))
 			.for_each(|(_, val)| *val = 0);
 
-		let instructions = Cpu::decode_all(&rom)
+		let instructions = Cpu::try_decode_all(&rom)
 			.into_iter()
 			.map(|(_, inst)| inst)
 			.collect();
