@@ -24,6 +24,9 @@ pub struct Cpu {
 	pub pc: u16,
 	/// Cpu registers
 	pub registers: Registers,
+	pub interupts: bool,
+
+	pub last_mem_addr: usize,
 }
 
 impl Cpu {
@@ -71,6 +74,8 @@ impl Cpu {
 					let hl = self.registers[Register16::HL];
 					memory[hl as usize] = self.registers[Register8::A];
 
+					self.last_mem_addr = hl as usize;
+
 					let hl = &mut self.registers[Register16::HL];
 					if inc {
 						*hl += 1;
@@ -87,7 +92,11 @@ impl Cpu {
 				Instruction::Mov8(dest, src) => {
 					let val = self.registers[src];
 					match dest {
-						Register8::DerefHL => memory[self.registers[Register16::HL] as usize] = val,
+						Register8::DerefHL => {
+							let addr = self.registers[Register16::HL] as usize;
+							memory[addr] = val;
+							self.last_mem_addr = addr;
+						}
 						_ => self.registers[dest] = val,
 					}
 				}
@@ -99,16 +108,33 @@ impl Cpu {
 					}
 					None => self.pc = ((self.pc - inst.size()) as i16 + r as i16) as u16,
 				},
-				Instruction::Jp(_, _) => todo!("{:?}", inst),
+				Instruction::Jp(f, addr) => match f {
+					Some(flag) => {
+						if self.registers.flag(flag) {
+							self.pc = addr;
+						}
+					}
+					None => self.pc = addr,
+				},
 				Instruction::Inc8(reg) => {
 					let (new, _) = self.registers[reg].overflowing_add(1);
+					self.registers[reg] = new;
 					update_flags! {
 						z: new == 0,
 						n: 0,
 						h: (self.registers[reg] & 0xF) + 1 > 0xF,
 					};
 				}
-				Instruction::Dec8(_) => todo!("{:?}", inst),
+				Instruction::Dec8(reg) => {
+					let orig = self.registers[reg];
+					let new = self.registers[reg].wrapping_sub(1);
+					self.registers[reg] = new;
+					update_flags! {
+						z: new == 0,
+						n: 1,
+						h: orig & 0xF == 0,
+					}
+				}
 				Instruction::Inc16(_) => todo!("{:?}", inst),
 				Instruction::Dec16(_) => todo!("{:?}", inst),
 				Instruction::Push(reg) => {
@@ -144,22 +170,42 @@ impl Cpu {
 				Instruction::And8(_) => todo!("{:?}", inst),
 				Instruction::Xor8(_) => todo!("{:?}", inst),
 				Instruction::Or8(_) => todo!("{:?}", inst),
-				Instruction::Cp8(_) => todo!("{:?}", inst),
+				Instruction::Cp8(val) => {
+					let a = self.registers[Register8::A];
+					update_flags! {
+						z: a == val,
+						n: 1,
+						h: a & 0xF < val & 0xF,
+						c: a < val,
+					}
+				}
 				Instruction::AddSp8(_) => todo!("{:?}", inst),
 				Instruction::Daa => todo!("{:?}", inst),
 				Instruction::Scf => todo!("{:?}", inst),
 				Instruction::Cpl => todo!("{:?}", inst),
 				Instruction::Ccf => todo!("{:?}", inst),
 				Instruction::Rlca => todo!("{:?}", inst),
-				Instruction::Rla => todo!("{:?}", inst),
+				Instruction::Rla => {
+					let new = {
+						let reg = &mut self.registers[Register8::A];
+						*reg = reg.rotate_left(1);
+						*reg
+					};
+					update_flags! {
+						z: new == 0,
+						n: 0,
+						h: 0,
+						c: new & 0x1,
+					}
+				}
 				Instruction::Rrca => todo!("{:?}", inst),
 				Instruction::Rra => todo!("{:?}", inst),
 				Instruction::StoreImm16AddrSp(_) => todo!("{:?}", inst),
 				Instruction::AddHl(_) => todo!("{:?}", inst),
 				Instruction::Ret(_) => todo!("{:?}", inst),
 				Instruction::Reti => todo!("{:?}", inst),
-				Instruction::Di => todo!("{:?}", inst),
-				Instruction::Ei => todo!("{:?}", inst),
+				Instruction::Di => self.interupts = false,
+				Instruction::Ei => self.interupts = true,
 				Instruction::Call(f, jump) => match f {
 					Some(flag) => todo!("{:?}", inst),
 					None => {
@@ -175,30 +221,51 @@ impl Cpu {
 				Instruction::StoreHA(offset) => {
 					let addr = 0xFF00 + offset as u16;
 					memory[addr as usize] = self.registers[Register8::A];
+					self.last_mem_addr = addr as usize;
 				}
-				Instruction::LoadHA(_) => todo!("{:?}", inst),
+				Instruction::LoadHA(offset) => {
+					self.registers[Register8::A] = memory[0xFF00 + offset as usize];
+				}
 				Instruction::StoreCA => {
 					let addr = 0xFF00 + self.registers[Register8::C] as u16;
 					memory[addr as usize] = self.registers[Register8::A];
+					self.last_mem_addr = addr as usize;
 				}
 				Instruction::LoadCA => todo!("{:?}", inst),
 				Instruction::StoreAAtAddress(_) => todo!("{:?}", inst),
 				Instruction::LoadAFromAddress(_) => todo!("{:?}", inst),
 				Instruction::Rlc(_) => todo!("{:?}", inst),
 				Instruction::Rrc(_) => todo!("{:?}", inst),
-				Instruction::Rr(_) => todo!("{:?}", inst),
-				Instruction::Rl(reg) => match reg {
+				Instruction::Rr(reg) => match reg {
 					Register8::DerefHL => todo!(),
 					reg => {
-						let overflow = (self.registers[reg] & 0x80) != 0;
-						self.registers[reg] <<= 1;
-						let new = self.registers[reg];
+						let new = {
+							let reg = &mut self.registers[reg];
+							*reg = reg.rotate_right(1);
+							*reg
+						};
 
 						update_flags! {
 							z: new == 0,
 							n: 0,
 							h: 0,
-							c: overflow,
+							c: (new >> 7) & 0x1,
+						}
+					}
+				},
+				Instruction::Rl(reg) => match reg {
+					Register8::DerefHL => todo!(),
+					reg => {
+						let new = {
+							let reg = &mut self.registers[reg];
+							*reg = reg.rotate_left(1);
+							*reg
+						};
+						update_flags! {
+							z: new == 0,
+							n: 0,
+							h: 0,
+							c: new & 0x1,
 						}
 					}
 				},

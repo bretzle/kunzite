@@ -19,7 +19,7 @@ use gui::*;
 fn main() -> Result<()> {
 	color_eyre::install()?;
 
-	let options = Options::new("GB Emulator", 600, 400);
+	let options = Options::new("GB Emulator", 1000, 600);
 
 	run::<Emulator>(options)
 

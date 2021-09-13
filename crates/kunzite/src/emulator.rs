@@ -8,6 +8,7 @@ use gui::{prelude::*, Application};
 use crate::{
 	cpu::instruction::{Flag, Register16, Register8},
 	gb::Gb,
+	memory::Memory,
 };
 
 /// The emulator
@@ -22,6 +23,13 @@ impl Emulator {
 			self.gb.step();
 		}
 	}
+
+	fn skip(&mut self, count: usize) {
+		for _ in 0..count {
+			let inst = self.gb.cpu.parse_instruction().unwrap().1;
+			self.gb.cpu.pc += inst.size();
+		}
+	}
 }
 
 impl Application for Emulator {
@@ -30,7 +38,7 @@ impl Application for Emulator {
 	fn setup() -> Self {
 		let mut gb = Gb::new();
 
-		gb.insert_rom("roms/bootloader.gb")
+		gb.insert_rom("roms/tetris.gb")
 			.expect("Failed to load ROM.");
 
 		Self { gb, run: false }
@@ -53,6 +61,13 @@ impl Application for Emulator {
 			} => {
 				self.step(0x1FFF * 3 + 6);
 			}
+			Event::KeyDown {
+				keycode: Some(Keycode::Semicolon),
+				repeat: false,
+				..
+			} => {
+				self.skip(1);
+			}
 			_ => (),
 		}
 
@@ -67,47 +82,128 @@ impl Application for Emulator {
 	}
 
 	fn draw(&mut self, ui: &Ui) {
-		Window::new(im_str!("Chip-8 - CPU State"))
-			.resizable(false)
-			.collapsible(false)
-			.size([316., 567.], Condition::Always)
-			.position([1., 50.], Condition::Always)
-			.build(ui, || {
-				let a = self.gb.cpu.registers[Register8::A];
-				let f = self.gb.cpu.registers.flags();
-				let af = self.gb.cpu.registers[Register16::AF];
+		Window::new(im_str!("CPU State")).build(ui, || {
+			let a = self.gb.cpu.registers[Register8::A];
+			let f = self.gb.cpu.registers.flags();
+			let af = self.gb.cpu.registers[Register16::AF];
 
-				let b = self.gb.cpu.registers[Register8::B];
-				let c = self.gb.cpu.registers[Register8::C];
-				let bc = self.gb.cpu.registers[Register16::BC];
+			let b = self.gb.cpu.registers[Register8::B];
+			let c = self.gb.cpu.registers[Register8::C];
+			let bc = self.gb.cpu.registers[Register16::BC];
 
-				let d = self.gb.cpu.registers[Register8::D];
-				let e = self.gb.cpu.registers[Register8::E];
-				let de = self.gb.cpu.registers[Register16::DE];
+			let d = self.gb.cpu.registers[Register8::D];
+			let e = self.gb.cpu.registers[Register8::E];
+			let de = self.gb.cpu.registers[Register16::DE];
 
-				let h = self.gb.cpu.registers[Register8::H];
-				let l = self.gb.cpu.registers[Register8::L];
-				let hl = self.gb.cpu.registers[Register16::HL];
+			let h = self.gb.cpu.registers[Register8::H];
+			let l = self.gb.cpu.registers[Register8::L];
+			let hl = self.gb.cpu.registers[Register16::HL];
 
-				ui.text(format!(
-					"PC: {:04X}  [{:?}]",
-					self.gb.cpu.pc,
-					self.gb.cpu.parse_instruction().unwrap().1
-				));
-				ui.text(format!("AF: {:02X}|{:02X} [{:04X}]", a, f, af));
-				ui.text(format!("BC: {:02X}|{:02X} [{:04X}]", b, c, bc));
-				ui.text(format!("DE: {:02X}|{:02X} [{:04X}]", d, e, de));
-				ui.text(format!("HL: {:02X}|{:02X} [{:04X}]", h, l, hl));
-				ui.text(format!("SP: {:04X}", self.gb.cpu.registers[Register16::SP]));
+			ui.text(format!(
+				"PC: {:04X}  [{:?}]",
+				self.gb.cpu.pc,
+				self.gb.cpu.parse_instruction().unwrap().1
+			));
+			ui.text(format!("AF: {:02X}|{:02X} [{:04X}]", a, f, af));
+			ui.text(format!("BC: {:02X}|{:02X} [{:04X}]", b, c, bc));
+			ui.text(format!("DE: {:02X}|{:02X} [{:04X}]", d, e, de));
+			ui.text(format!("HL: {:02X}|{:02X} [{:04X}]", h, l, hl));
+			ui.text(format!("SP: {:04X}", self.gb.cpu.registers[Register16::SP]));
 
-				ui.text(format!("Flags:"));
-				ui.text(format!("Zero: {}", self.gb.cpu.registers.flag(Flag::Z)));
-				ui.text(format!("Subtract: {}", self.gb.cpu.registers.flag(Flag::N)));
-				ui.text(format!(
-					"Half-carry: {}",
-					self.gb.cpu.registers.flag(Flag::H)
-				));
-				ui.text(format!("Carry: {}", self.gb.cpu.registers.flag(Flag::C)));
+			ui.text(format!("Flags:"));
+			ui.text(format!("Zero: {}", self.gb.cpu.registers.flag(Flag::Z)));
+			ui.text(format!("Subtract: {}", self.gb.cpu.registers.flag(Flag::N)));
+			ui.text(format!(
+				"Half-carry: {}",
+				self.gb.cpu.registers.flag(Flag::H)
+			));
+			ui.text(format!("Carry: {}", self.gb.cpu.registers.flag(Flag::C)));
+		});
+
+		// Window::new(im_str!("memory")).build(ui, || {
+		// 	//
+		// 	let addr = self.gb.cpu.last_mem_addr;
+
+		// 	let range = if addr >= 3 {
+		// 		(addr - 3)..(addr + 3)
+		// 	} else {
+		// 		0..(addr + 7)
+		// 	};
+
+		// 	for idx in range {
+		// 		ui.text(format!("0x{:04X}: {:02X}", idx, self.gb.memory[idx]));
+		// 	}
+		// });
+		Window::new(im_str!("Memory")).build(ui, || {
+			ui.set_next_item_width(-1.);
+
+			Slider::new(im_str!("##")).range(1..=16).build(ui, &mut 16);
+
+			let memory = &self.gb.memory;
+
+			ChildWindow::new("memory").build(ui, || {
+				let total_addresses = Memory::LENGTH;
+				let lines_to_draw = total_addresses / 16 as usize;
+				let last_line_address = (lines_to_draw - 1) * 16 as usize;
+				let mut last_line_items = total_addresses % 16 as usize;
+
+				if last_line_items == 0 {
+					last_line_items = 16 as usize
+				}
+
+				let clipper = ListClipper::new(lines_to_draw as i32);
+				let mut ctoken = clipper.begin(ui);
+
+				while ctoken.step() {
+					for offset in ctoken.display_start()..ctoken.display_end() {
+						let address = offset as usize * 16 as usize;
+
+						if address == 0x200 {
+							ui.separator();
+						}
+
+						let max_items = 16 as usize;
+
+						let mut item_count = max_items;
+						if address == last_line_address {
+							item_count = last_line_items;
+						}
+
+						// display address
+						ui.text(format!("{:#05X} |", address));
+
+						// display address content (hex)
+						for base in 0..item_count {
+							ui.same_line();
+							ui.text(format!("{:>02X}", memory[address + base]))
+						}
+
+						for _ in item_count..max_items {
+							ui.same_line();
+							ui.text("..");
+						}
+
+						// display address content (ascii)
+						ui.same_line();
+						let mut text = "| ".to_string();
+
+						for base in 0..item_count {
+							let byte = memory[address + base] as char;
+							let c = if byte.is_ascii_control() || byte.is_ascii_whitespace() {
+								' '
+							} else {
+								byte
+							};
+							text.push(c);
+						}
+						for _ in item_count..max_items {
+							text.push(' ');
+						}
+
+						ui.text(text)
+					}
+				}
 			});
+		});
 	}
 }

@@ -182,7 +182,10 @@ impl std::fmt::Debug for Instruction {
 				Some(fl) => write!(f, "JR  {:?}, ${:02X}", fl, arg1),
 				None => write!(f, "JR  ${:02X}", arg1),
 			},
-			Self::Jp(arg0, arg1) => f.debug_tuple("Jp").field(arg0).field(arg1).finish(),
+			Self::Jp(arg0, arg1) => match arg0 {
+				Some(flag) => write!(f, "JP  {:?}, {}", flag, arg1),
+				None => write!(f, "JP  {}", arg1),
+			},
 			Self::Inc8(arg0) => write!(f, "INC {:?}", arg0),
 			Self::Dec8(arg0) => write!(f, "DEC {:?}", arg0),
 			Self::Inc16(arg0) => write!(f, "INC {:?}", arg0),

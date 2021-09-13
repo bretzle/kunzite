@@ -7,8 +7,9 @@ use color_eyre::Result;
 pub struct Gb {
 	/// the cpu
 	pub cpu: Cpu,
-	memory: Memory,
-	display: Display,
+	/// the memory
+	pub memory: Memory,
+	_display: Display,
 }
 
 impl Gb {
@@ -17,7 +18,7 @@ impl Gb {
 		Self {
 			cpu: Cpu::default(),
 			memory: Memory::new(),
-			display: Display::new(),
+			_display: Display::new(),
 		}
 	}
 

@@ -3,9 +3,11 @@
 use std::ops::{Index, IndexMut};
 
 /// Memory
-pub struct Memory([u8; 0x10000]);
+pub struct Memory([u8; Self::LENGTH]);
 
 impl Memory {
+	pub const LENGTH: usize = 0x10000;
+
 	/// Create a new memory instance
 	pub fn new() -> Self {
 		Self([0; 0x10000])
