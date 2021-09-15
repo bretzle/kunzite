@@ -133,8 +133,8 @@ impl Cpu {
 						h: orig & 0xF == 0,
 					}
 				}
-				Instruction::Inc16(_) => todo!("{:?}", inst),
-				Instruction::Dec16(_) => todo!("{:?}", inst),
+				Instruction::Inc16(reg) => self.registers[reg] += 1,
+				Instruction::Dec16(reg) => self.registers[reg] -= 1,
 				Instruction::Push(reg) => {
 					let regs = reg.tear();
 					self.push(self.registers[regs.0]);
@@ -200,7 +200,14 @@ impl Cpu {
 				Instruction::Rra => todo!("{:?}", inst),
 				Instruction::StoreImm16AddrSp(_) => todo!("{:?}", inst),
 				Instruction::AddHl(_) => todo!("{:?}", inst),
-				Instruction::Ret(_) => todo!("{:?}", inst),
+				Instruction::Ret(f) => match f {
+					Some(_flag) => todo!("{:?}", inst),
+					None => {
+						let lower = dbg!(self.pop() as u16);
+						let upper = dbg!(self.pop() as u16);
+						self.pc = dbg!((upper << 8) | lower);
+					}
+				},
 				Instruction::Reti => todo!("{:?}", inst),
 				Instruction::Di => self.interupts = false,
 				Instruction::Ei => self.interupts = true,
@@ -213,7 +220,11 @@ impl Cpu {
 					}
 				},
 				Instruction::JpHl => todo!("{:?}", inst),
-				Instruction::Rst(_) => todo!("{:?}", inst),
+				Instruction::Rst(val) => {
+					self.push(upper(self.pc + 1));
+					self.push(lower(self.pc + 1));
+					self.pc = val as u16;
+				}
 				Instruction::LdHlSp8(_) => todo!("{:?}", inst),
 				Instruction::LdSpHl => todo!("{:?}", inst),
 				Instruction::StoreHA(offset) => {
@@ -230,7 +241,9 @@ impl Cpu {
 					self.last_mem_addr = addr as usize;
 				}
 				Instruction::LoadCA => todo!("{:?}", inst),
-				Instruction::StoreAAtAddress(_) => todo!("{:?}", inst),
+				Instruction::StoreAAtAddress(addr) => {
+					self.memory[addr as usize] = self.registers[Register8::A];
+				}
 				Instruction::LoadAFromAddress(_) => todo!("{:?}", inst),
 				Instruction::Rlc(_) => todo!("{:?}", inst),
 				Instruction::Rrc(_) => todo!("{:?}", inst),
@@ -297,9 +310,9 @@ impl Cpu {
 	fn push(&mut self, val: u8) {
 		let sp = &mut self.registers[Register16::SP];
 
-		self.memory[*sp as usize] = val;
-
 		*sp -= 1;
+
+		self.memory[*sp as usize] = val;
 	}
 
 	fn pop(&mut self) -> u8 {
@@ -311,11 +324,4 @@ impl Cpu {
 
 		val
 	}
-}
-
-#[test]
-fn feature() {
-	let a = 0x80u8;
-
-	assert_eq!(a.overflowing_shl(1), (0, true));
 }

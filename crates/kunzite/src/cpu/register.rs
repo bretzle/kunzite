@@ -42,7 +42,8 @@ impl Registers {
 				Register8::E => &self.reg8.e,
 				Register8::H => &self.reg8.h,
 				Register8::L => &self.reg8.l,
-				Register8::DerefHL | Register8::F => todo!(),
+				Register8::F => &self.reg8.f,
+				Register8::DerefHL => todo!(),
 			}
 		}
 	}
@@ -57,7 +58,8 @@ impl Registers {
 				Register8::E => &mut self.reg8.e,
 				Register8::H => &mut self.reg8.h,
 				Register8::L => &mut self.reg8.l,
-				Register8::DerefHL | Register8::F => todo!(),
+				Register8::F => &mut self.reg8.f,
+				Register8::DerefHL => todo!(),
 			}
 		}
 	}

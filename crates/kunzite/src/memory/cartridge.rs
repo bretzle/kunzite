@@ -13,14 +13,17 @@ pub struct Cartridge {
 
 impl Cartridge {
 	pub fn new() -> Self {
-		Self { rom: vec![] }
+		Self {
+			rom: [0; 0x7fff].into(),
+		}
 	}
 
 	/// Insert a cartridge into the cpu
 	pub fn insert_rom<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
 		let mut file = File::open(path)?;
 
-		let size = file.read_to_end(&mut self.rom)?;
+		// let size = file.read_to_end(&mut self.rom[0..])?;
+		let size = file.read(&mut self.rom[0..])?;
 
 		println!("Rom size: {} bytes", size);
 

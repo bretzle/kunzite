@@ -26,10 +26,13 @@ impl Emulator {
 			// }
 			if let Some(i) = self.gb.cpu.parse_instruction() {
 				if self.run {
-					if let Instruction::Jp(_, 0xC000) = i {
-						println!("here");
-						self.run = false;
-						return;
+					match i {
+						Instruction::Jp(_, 0xC000) | Instruction::Rst(_) => {
+							println!("here");
+							self.run = false;
+							return;
+						}
+						_ => (),
 					}
 				}
 				self.locs.insert(i);
@@ -64,9 +67,9 @@ impl Application for Emulator {
 	fn setup() -> Self {
 		let mut gb = Gb::new();
 
-		gb.cpu.pc = 0x100;
+		// gb.cpu.pc = 0x100;
 
-		gb.insert_rom("roms/01-special.gb")
+		gb.insert_rom("roms/bootloader.gb")
 			.expect("Failed to load ROM.");
 
 		Self {
@@ -91,7 +94,7 @@ impl Application for Emulator {
 				repeat: false,
 				..
 			} => {
-				self.run = true;
+				self.run = !self.run;
 			}
 			Event::KeyDown {
 				keycode: Some(Keycode::Semicolon),
