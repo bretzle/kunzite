@@ -1,9 +1,5 @@
 //! The cpu
 
-use std::{fs::File, io::Read, ops::BitXor, path::Path};
-
-use color_eyre::Result;
-
 use crate::{
 	cpu::instruction::{Flag, Instruction, Register16},
 	memory::Memory,
@@ -19,7 +15,6 @@ mod register;
 /// The cpu
 #[derive(Default)]
 pub struct Cpu {
-	rom: Option<Vec<u8>>,
 	/// Program counter
 	pub pc: u16,
 	/// Cpu registers
@@ -27,23 +22,13 @@ pub struct Cpu {
 	pub interupts: bool,
 
 	pub last_mem_addr: usize,
+	pub memory: Memory,
 }
 
 impl Cpu {
-	/// Insert a cartridge into the cpu
-	pub fn insert_rom<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
-		let mut file = File::open(path)?;
-
-		let size = file.read_to_end(self.rom.insert(vec![]))?;
-
-		println!("Rom size: {} bytes", size);
-
-		Ok(())
-	}
-
 	/// Execute an instruction and increment pc
-	pub fn step(&mut self, memory: &mut Memory) {
-		if let Some((_, inst)) = self.parse_instruction() {
+	pub fn step(&mut self) {
+		if let Some(inst) = self.parse_instruction() {
 			self.pc += inst.size();
 
 			macro_rules! update_flags {
@@ -61,7 +46,7 @@ impl Cpu {
 			}
 
 			match inst {
-				Instruction::Nop => todo!("{:?}", inst),
+				Instruction::Nop => {} // TODO: does this do anything?
 				Instruction::Stop => todo!("{:?}", inst),
 				Instruction::Halt => todo!("{:?}", inst),
 				Instruction::StoreImm16(reg, val) => {
@@ -72,7 +57,7 @@ impl Cpu {
 				}
 				Instruction::StoreAToHlAddr(inc) => {
 					let hl = self.registers[Register16::HL];
-					memory[hl as usize] = self.registers[Register8::A];
+					self.memory[hl as usize] = self.registers[Register8::A];
 
 					self.last_mem_addr = hl as usize;
 
@@ -83,18 +68,31 @@ impl Cpu {
 						*hl -= 1;
 					}
 				}
-				Instruction::LoadAFromHlAddr(_) => todo!("{:?}", inst),
-				Instruction::StoreATo16(_) => todo!("{:?}", inst),
+				Instruction::LoadAFromHlAddr(inc) => {
+					let hl = self.registers[Register16::HL];
+					self.registers[Register8::A] = self.memory[hl as usize];
+
+					let hl = &mut self.registers[Register16::HL];
+					if inc {
+						*hl += 1;
+					} else {
+						*hl -= 1;
+					}
+				}
+				Instruction::StoreATo16(reg) => {
+					let addr = self.registers[reg] as usize;
+					self.memory[addr] = self.registers[Register8::A];
+				}
 				Instruction::LoadAFromReg16Addr(reg) => {
 					let addr = self.registers[reg];
-					self.registers[Register8::A] = memory[addr as usize];
+					self.registers[Register8::A] = self.memory[addr as usize];
 				}
 				Instruction::Mov8(dest, src) => {
 					let val = self.registers[src];
 					match dest {
 						Register8::DerefHL => {
 							let addr = self.registers[Register16::HL] as usize;
-							memory[addr] = val;
+							self.memory[addr] = val;
 							self.last_mem_addr = addr;
 						}
 						_ => self.registers[dest] = val,
@@ -139,13 +137,13 @@ impl Cpu {
 				Instruction::Dec16(_) => todo!("{:?}", inst),
 				Instruction::Push(reg) => {
 					let regs = reg.tear();
-					self.push(memory, self.registers[regs.0]);
-					self.push(memory, self.registers[regs.1]);
+					self.push(self.registers[regs.0]);
+					self.push(self.registers[regs.1]);
 				}
 				Instruction::Pop(reg) => {
 					let regs = reg.tear();
-					self.registers[regs.1] = self.pop(memory);
-					self.registers[regs.0] = self.pop(memory);
+					self.registers[regs.1] = self.pop();
+					self.registers[regs.0] = self.pop();
 				}
 				Instruction::Add(_) => todo!("{:?}", inst),
 				Instruction::Adc(_) => todo!("{:?}", inst),
@@ -207,10 +205,10 @@ impl Cpu {
 				Instruction::Di => self.interupts = false,
 				Instruction::Ei => self.interupts = true,
 				Instruction::Call(f, jump) => match f {
-					Some(flag) => todo!("{:?}", inst),
+					Some(_flag) => todo!("{:?}", inst),
 					None => {
-						self.push(memory, upper(self.pc));
-						self.push(memory, lower(self.pc));
+						self.push(upper(self.pc));
+						self.push(lower(self.pc));
 						self.pc = jump;
 					}
 				},
@@ -220,15 +218,15 @@ impl Cpu {
 				Instruction::LdSpHl => todo!("{:?}", inst),
 				Instruction::StoreHA(offset) => {
 					let addr = 0xFF00 + offset as u16;
-					memory[addr as usize] = self.registers[Register8::A];
+					self.memory[addr as usize] = self.registers[Register8::A];
 					self.last_mem_addr = addr as usize;
 				}
 				Instruction::LoadHA(offset) => {
-					self.registers[Register8::A] = memory[0xFF00 + offset as usize];
+					self.registers[Register8::A] = self.memory[0xFF00 + offset as usize];
 				}
 				Instruction::StoreCA => {
 					let addr = 0xFF00 + self.registers[Register8::C] as u16;
-					memory[addr as usize] = self.registers[Register8::A];
+					self.memory[addr as usize] = self.registers[Register8::A];
 					self.last_mem_addr = addr as usize;
 				}
 				Instruction::LoadCA => todo!("{:?}", inst),
@@ -296,18 +294,18 @@ impl Cpu {
 		}
 	}
 
-	fn push(&mut self, memory: &mut Memory, val: u8) {
+	fn push(&mut self, val: u8) {
 		let sp = &mut self.registers[Register16::SP];
 
-		memory[*sp as usize] = val;
+		self.memory[*sp as usize] = val;
 
 		*sp -= 1;
 	}
 
-	fn pop(&mut self, memory: &mut Memory) -> u8 {
+	fn pop(&mut self) -> u8 {
 		let sp = &mut self.registers[Register16::SP];
 
-		let val = memory[*sp as usize];
+		let val = self.memory[*sp as usize];
 
 		*sp += 1;
 

@@ -1,12 +1,12 @@
 //!
 
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 
 use color_eyre::Report;
 use gui::{prelude::*, Application};
 
 use crate::{
-	cpu::instruction::{Flag, Register16, Register8},
+	cpu::instruction::{Flag, Instruction, Register16, Register8},
 	gb::Gb,
 	memory::Memory,
 };
@@ -15,18 +15,44 @@ use crate::{
 pub struct Emulator {
 	gb: Gb,
 	run: bool,
+	locs: HashSet<Instruction>,
 }
 
 impl Emulator {
 	fn step(&mut self, num: usize) {
 		for _ in 0..num {
+			// if self.gb.cpu.pc == 0xC000 {
+			// 	continue;
+			// }
+			if let Some(i) = self.gb.cpu.parse_instruction() {
+				if self.run {
+					if let Instruction::Jp(_, 0xC000) = i {
+						println!("here");
+						self.run = false;
+						return;
+					}
+				}
+				self.locs.insert(i);
+			}
+
 			self.gb.step();
+
+			let s = self.gb.cpu.memory[0xFF02];
+
+			if s != 0 {
+				dbg!(s);
+			}
+
+			if s == 0x81 {
+				println!("{}", self.gb.cpu.memory[0xFF01]);
+				self.gb.cpu.memory[0xFF02] = 0;
+			}
 		}
 	}
 
 	fn skip(&mut self, count: usize) {
 		for _ in 0..count {
-			let inst = self.gb.cpu.parse_instruction().unwrap().1;
+			let inst = self.gb.cpu.parse_instruction().unwrap();
 			self.gb.cpu.pc += inst.size();
 		}
 	}
@@ -38,10 +64,16 @@ impl Application for Emulator {
 	fn setup() -> Self {
 		let mut gb = Gb::new();
 
-		gb.insert_rom("roms/tetris.gb")
+		gb.cpu.pc = 0x100;
+
+		gb.insert_rom("roms/01-special.gb")
 			.expect("Failed to load ROM.");
 
-		Self { gb, run: false }
+		Self {
+			gb,
+			run: false,
+			locs: HashSet::new(),
+		}
 	}
 
 	fn handle_event(&mut self, event: Event, running: &mut bool) -> Result<(), Self::Error> {
@@ -49,7 +81,7 @@ impl Application for Emulator {
 			Event::Quit { .. } => *running = false,
 			Event::KeyDown {
 				keycode: Some(Keycode::Space),
-				repeat: false,
+				// repeat: false,
 				..
 			} => {
 				self.step(1);
@@ -59,7 +91,7 @@ impl Application for Emulator {
 				repeat: false,
 				..
 			} => {
-				self.step(0x1FFF * 3 + 6);
+				self.run = true;
 			}
 			Event::KeyDown {
 				keycode: Some(Keycode::Semicolon),
@@ -67,6 +99,12 @@ impl Application for Emulator {
 				..
 			} => {
 				self.skip(1);
+			}
+			Event::KeyDown {
+				keycode: Some(Keycode::P),
+				..
+			} => {
+				println!("{:#?}", self.locs)
 			}
 			_ => (),
 		}
@@ -99,11 +137,14 @@ impl Application for Emulator {
 			let l = self.gb.cpu.registers[Register8::L];
 			let hl = self.gb.cpu.registers[Register16::HL];
 
-			ui.text(format!(
-				"PC: {:04X}  [{:?}]",
-				self.gb.cpu.pc,
-				self.gb.cpu.parse_instruction().unwrap().1
-			));
+			let i_text = match self.gb.cpu.parse_instruction() {
+				Some(i) => {
+					format!("PC: {:04X}  [{:?}]", self.gb.cpu.pc, i)
+				}
+				None => format!("PC: {:04X}  [END]", self.gb.cpu.pc),
+			};
+
+			ui.text(i_text);
 			ui.text(format!("AF: {:02X}|{:02X} [{:04X}]", a, f, af));
 			ui.text(format!("BC: {:02X}|{:02X} [{:04X}]", b, c, bc));
 			ui.text(format!("DE: {:02X}|{:02X} [{:04X}]", d, e, de));
@@ -139,7 +180,7 @@ impl Application for Emulator {
 
 			Slider::new(im_str!("##")).range(1..=16).build(ui, &mut 16);
 
-			let memory = &self.gb.memory;
+			let memory = &self.gb.cpu.memory;
 
 			ChildWindow::new("memory").build(ui, || {
 				let total_addresses = Memory::LENGTH;

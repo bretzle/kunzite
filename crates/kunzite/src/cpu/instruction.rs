@@ -175,7 +175,7 @@ impl std::fmt::Debug for Instruction {
 				write!(f, "LD  (HL{}), A", sign)
 			}
 			Self::LoadAFromHlAddr(arg0) => f.debug_tuple("LoadAFromHlAddr").field(arg0).finish(),
-			Self::StoreATo16(arg0) => f.debug_tuple("StoreATo16").field(arg0).finish(),
+			Self::StoreATo16(arg0) => write!(f, "LD  ({:?}), A", arg0),
 			Self::LoadAFromReg16Addr(arg0) => write!(f, "LD  A, ({:?})", arg0),
 			Self::Mov8(arg0, arg1) => write!(f, "LD  {:?}, {:?}", arg0, arg1),
 			Self::Jr(arg0, arg1) => match arg0 {
@@ -265,8 +265,8 @@ impl Instruction {
 			Instruction::StoreImm16(_, _) => 3,
 			Instruction::StoreImm8(_, _) => 2,
 			Instruction::StoreAToHlAddr(_) => 1,
-			Instruction::LoadAFromHlAddr(_) => todo!(),
-			Instruction::StoreATo16(_) => todo!(),
+			Instruction::LoadAFromHlAddr(_) => 1,
+			Instruction::StoreATo16(_) => 1,
 			Instruction::LoadAFromReg16Addr(_) => 1,
 			Instruction::Mov8(_, _) => 1,
 			Instruction::Jr(_, _) => 2,

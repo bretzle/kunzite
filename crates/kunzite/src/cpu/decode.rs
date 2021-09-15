@@ -19,7 +19,7 @@ struct DecodeInfo {
 impl DecodeInfo {
 	#[allow(clippy::many_single_char_names)]
 	pub fn new(cpu: &Cpu, opcode: u8) -> Self {
-		let rom = cpu.rom.as_ref().unwrap();
+		let rom = &cpu.memory;
 		let x = (opcode >> 6) & 0x3;
 		let y = (opcode >> 3) & 0x7;
 		let z = opcode & 0x7;
@@ -28,7 +28,7 @@ impl DecodeInfo {
 
 		let d = rom[cpu.pc as usize + 1] as i8;
 		let n = rom[cpu.pc as usize + 1];
-		let nn = if cpu.pc as usize + 2 < rom.len() {
+		let nn = if cpu.pc as usize + 2 < 0x10000 {
 			((rom[cpu.pc as usize + 2] as u16) << 8) | n as u16
 		} else {
 			0
@@ -95,21 +95,21 @@ impl Cpu {
 		let mut instructions = vec![];
 		let mut this = Self::default();
 
-		let _ = this.rom.insert(data.to_vec());
+		let _ = this.memory.cartridge.rom = data.to_vec();
 
 		while let Some(inst) = this.parse_instruction() {
-			this.pc += inst.1.size();
-			instructions.push(inst);
+			let pc = this.pc;
+			this.pc += inst.size();
+			instructions.push((pc, inst));
 		}
 
 		instructions
 	}
 
-	pub(crate) fn parse_instruction(&self) -> Option<(u16, Instruction)> {
-		let ret_pc = self.pc;
-		let rom = self.rom.as_ref().unwrap();
+	pub(crate) fn parse_instruction(&self) -> Option<Instruction> {
+		let rom = &self.memory;
 
-		if let Some(&opcode) = rom.get(self.pc as usize) {
+		if let Some(opcode) = rom.get(self.pc as usize) {
 			let info = DecodeInfo::new(self, opcode);
 
 			#[cfg(feature = "debug_opcode")]
@@ -120,7 +120,7 @@ impl Cpu {
 				_ => self.parse_normal_inst(info),
 			};
 
-			Some((ret_pc, inst))
+			Some(inst)
 		} else {
 			None
 		}
