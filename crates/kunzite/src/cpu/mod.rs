@@ -1,5 +1,7 @@
 //! The cpu
 
+use std::ops::Not;
+
 use crate::{
 	cpu::instruction::{Flag, Instruction, Register16},
 	memory::Memory,
@@ -104,7 +106,7 @@ impl Cpu {
 							self.pc = ((self.pc) as i16 + r as i16) as u16
 						}
 					}
-					None => self.pc = ((self.pc - inst.size()) as i16 + r as i16) as u16,
+					None => self.pc = ((self.pc - inst.size()) as i16 + r as i16 - 1) as u16,
 				},
 				Instruction::Jp(f, addr) => match f {
 					Some(flag) => {
@@ -148,7 +150,24 @@ impl Cpu {
 				Instruction::Add(_) => todo!("{:?}", inst),
 				Instruction::Adc(_) => todo!("{:?}", inst),
 				Instruction::Sub(_) => todo!("{:?}", inst),
-				Instruction::Sbc(_) => todo!("{:?}", inst),
+				Instruction::Sbc(reg) => {
+					let c = if self.registers.flag(Flag::C) { 1 } else { 0 };
+					let orig = self.registers[Register8::A];
+					let val = self.registers[reg];
+
+					let res = orig.wrapping_sub(val).wrapping_sub(c);
+					let half_carry = (orig & 0xf) < (val & 0xf) + c;
+					let carry = (orig as u16) < (val as u16) + (c as u16);
+
+					self.registers[Register8::A] = res;
+
+					update_flags! {
+						z: res == 0,
+						n: 1,
+						h: half_carry,
+						c: carry,
+					}
+				}
 				Instruction::And(_) => todo!("{:?}", inst),
 				Instruction::Xor(reg) => {
 					self.registers[Register8::A] ^= self.registers[reg];
@@ -180,7 +199,13 @@ impl Cpu {
 				Instruction::AddSp8(_) => todo!("{:?}", inst),
 				Instruction::Daa => todo!("{:?}", inst),
 				Instruction::Scf => todo!("{:?}", inst),
-				Instruction::Cpl => todo!("{:?}", inst),
+				Instruction::Cpl => {
+					self.registers[Register8::A] = !self.registers[Register8::A];
+					update_flags! {
+						n: 1,
+						h: 1,
+					}
+				}
 				Instruction::Ccf => todo!("{:?}", inst),
 				Instruction::Rlca => todo!("{:?}", inst),
 				Instruction::Rla => {
@@ -203,9 +228,9 @@ impl Cpu {
 				Instruction::Ret(f) => match f {
 					Some(_flag) => todo!("{:?}", inst),
 					None => {
-						let lower = dbg!(self.pop() as u16);
-						let upper = dbg!(self.pop() as u16);
-						self.pc = dbg!((upper << 8) | lower);
+						let lower = self.pop() as u16;
+						let upper = self.pop() as u16;
+						self.pc = (upper << 8) | lower;
 					}
 				},
 				Instruction::Reti => todo!("{:?}", inst),

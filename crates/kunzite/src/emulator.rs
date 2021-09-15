@@ -69,7 +69,8 @@ impl Application for Emulator {
 
 		// gb.cpu.pc = 0x100;
 
-		gb.insert_rom("roms/bootloader.gb")
+		// gb.insert_rom("roms/bootloader.gb")
+		gb.insert_rom("roms/cpu_instrs.gb")
 			.expect("Failed to load ROM.");
 
 		Self {
