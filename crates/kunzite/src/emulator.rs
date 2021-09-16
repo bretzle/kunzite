@@ -67,7 +67,7 @@ impl Application for Emulator {
 	fn setup() -> Self {
 		let mut gb = Gb::new();
 
-		// gb.cpu.pc = 0x100;
+		gb.cpu.pc = 0x100;
 
 		// gb.insert_rom("roms/bootloader.gb")
 		gb.insert_rom("roms/cpu_instrs.gb")
@@ -125,20 +125,20 @@ impl Application for Emulator {
 
 	fn draw(&mut self, ui: &Ui) {
 		Window::new(im_str!("CPU State")).build(ui, || {
-			let a = self.gb.cpu.registers[Register8::A];
+			let a = self.gb.cpu.read(Register8::A);
 			let f = self.gb.cpu.registers.flags();
 			let af = self.gb.cpu.registers[Register16::AF];
 
-			let b = self.gb.cpu.registers[Register8::B];
-			let c = self.gb.cpu.registers[Register8::C];
+			let b = self.gb.cpu.read(Register8::B);
+			let c = self.gb.cpu.read(Register8::C);
 			let bc = self.gb.cpu.registers[Register16::BC];
 
-			let d = self.gb.cpu.registers[Register8::D];
-			let e = self.gb.cpu.registers[Register8::E];
+			let d = self.gb.cpu.read(Register8::D);
+			let e = self.gb.cpu.read(Register8::E);
 			let de = self.gb.cpu.registers[Register16::DE];
 
-			let h = self.gb.cpu.registers[Register8::H];
-			let l = self.gb.cpu.registers[Register8::L];
+			let h = self.gb.cpu.read(Register8::H);
+			let l = self.gb.cpu.read(Register8::L);
 			let hl = self.gb.cpu.registers[Register16::HL];
 
 			let i_text = match self.gb.cpu.parse_instruction() {
@@ -203,8 +203,10 @@ impl Application for Emulator {
 					for offset in ctoken.display_start()..ctoken.display_end() {
 						let address = offset as usize * 16 as usize;
 
-						if address == 0x200 {
-							ui.separator();
+						match address {
+							0x100 | 0x8000 | 0xA000 | 0xC000 | 0xE000 | 0xFE00 | 0xFEA0
+							| 0xFF00 | 0xFF4C | 0xFF80 | 0xFFFF => ui.separator(),
+							_ => {}
 						}
 
 						let max_items = 16 as usize;

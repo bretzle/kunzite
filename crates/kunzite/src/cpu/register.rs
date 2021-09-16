@@ -1,6 +1,9 @@
 use std::ops::{Index, IndexMut};
 
-use super::instruction::{Flag, Register16, Register8};
+use super::{
+	instruction::{Flag, Register16, Register8},
+	Cpu,
+};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -32,38 +35,6 @@ pub union Registers {
 }
 
 impl Registers {
-	fn read(&self, reg: Register8) -> &u8 {
-		unsafe {
-			match reg {
-				Register8::A => &self.reg8.a,
-				Register8::B => &self.reg8.b,
-				Register8::C => &self.reg8.c,
-				Register8::D => &self.reg8.d,
-				Register8::E => &self.reg8.e,
-				Register8::H => &self.reg8.h,
-				Register8::L => &self.reg8.l,
-				Register8::F => &self.reg8.f,
-				Register8::DerefHL => todo!(),
-			}
-		}
-	}
-
-	fn read_mut(&mut self, reg: Register8) -> &mut u8 {
-		unsafe {
-			match reg {
-				Register8::A => &mut self.reg8.a,
-				Register8::B => &mut self.reg8.b,
-				Register8::C => &mut self.reg8.c,
-				Register8::D => &mut self.reg8.d,
-				Register8::E => &mut self.reg8.e,
-				Register8::H => &mut self.reg8.h,
-				Register8::L => &mut self.reg8.l,
-				Register8::F => &mut self.reg8.f,
-				Register8::DerefHL => todo!(),
-			}
-		}
-	}
-
 	fn read16(&self, reg: Register16) -> &u16 {
 		unsafe {
 			match reg {
@@ -129,21 +100,25 @@ impl Registers {
 			_ => unreachable!(),
 		}
 	}
-}
 
-impl Index<Register8> for Registers {
-	type Output = u8;
-
-	fn index(&self, reg: Register8) -> &Self::Output {
-		self.read(reg)
+	pub fn carry(&self) -> bool {
+		self.flag(Flag::C)
 	}
 }
 
-impl IndexMut<Register8> for Registers {
-	fn index_mut(&mut self, reg: Register8) -> &mut Self::Output {
-		self.read_mut(reg)
-	}
-}
+// impl Index<Register8> for Registers {
+// 	type Output = u8;
+
+// 	fn index(&self, reg: Register8) -> &Self::Output {
+// 		self.read(reg)
+// 	}
+// }
+
+// impl IndexMut<Register8> for Registers {
+// 	fn index_mut(&mut self, reg: Register8) -> &mut Self::Output {
+// 		self.read_mut(reg)
+// 	}
+// }
 
 impl Index<Register16> for Registers {
 	type Output = u16;
@@ -163,6 +138,38 @@ impl Default for Registers {
 	fn default() -> Self {
 		Self {
 			reg16: Reg16s::default(),
+		}
+	}
+}
+
+impl Cpu {
+	pub fn read(&self, reg: Register8) -> u8 {
+		unsafe {
+			match reg {
+				Register8::DerefHL => self.memory[self.registers[Register16::HL] as usize],
+				Register8::A => self.registers.reg8.a,
+				Register8::B => self.registers.reg8.b,
+				Register8::C => self.registers.reg8.c,
+				Register8::D => self.registers.reg8.d,
+				Register8::E => self.registers.reg8.e,
+				Register8::H => self.registers.reg8.h,
+				Register8::L => self.registers.reg8.l,
+				Register8::F => self.registers.reg8.f,
+			}
+		}
+	}
+
+	pub fn write(&mut self, reg: Register8, val: u8) {
+		match reg {
+			Register8::DerefHL => self.memory[self.registers[Register16::HL] as usize] = val,
+			Register8::A => self.registers.reg8.a = val,
+			Register8::B => self.registers.reg8.b = val,
+			Register8::C => self.registers.reg8.c = val,
+			Register8::D => self.registers.reg8.d = val,
+			Register8::E => self.registers.reg8.e = val,
+			Register8::H => self.registers.reg8.h = val,
+			Register8::L => self.registers.reg8.l = val,
+			Register8::F => self.registers.reg8.f = val,
 		}
 	}
 }

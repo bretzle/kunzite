@@ -6,8 +6,6 @@ use std::{
 	path::Path,
 };
 
-use crate::memory::cartridge;
-
 #[derive(Default)]
 pub struct Cartridge {
 	pub rom: Vec<u8>,
@@ -16,7 +14,7 @@ pub struct Cartridge {
 impl Cartridge {
 	pub fn new() -> Self {
 		Self {
-			rom: [0; 0x7fff].into(),
+			rom: [0; 0x8000].into(),
 		}
 	}
 
