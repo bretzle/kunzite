@@ -67,7 +67,7 @@ impl Application for Emulator {
 	fn setup() -> Self {
 		let mut gb = Gb::new();
 
-		gb.cpu.pc = 0x100;
+		gb.boot();
 
 		// gb.insert_rom("roms/bootloader.gb")
 		gb.insert_rom("roms/cpu_instrs.gb")
