@@ -40,15 +40,15 @@ impl Emulator {
 
 			self.gb.step();
 
-			let s = self.gb.cpu.memory[0xFF02];
+			let s = self.gb.cpu.memory.read(0xFF02);
 
 			if s != 0 {
 				dbg!(s);
 			}
 
 			if s == 0x81 {
-				println!("{}", self.gb.cpu.memory[0xFF01]);
-				self.gb.cpu.memory[0xFF02] = 0;
+				println!("{}", self.gb.cpu.memory.read(0xFF01));
+				self.gb.cpu.memory.write(0xFF02, 0);
 			}
 		}
 	}
@@ -187,21 +187,21 @@ impl Application for Emulator {
 			let memory = &self.gb.cpu.memory;
 
 			ChildWindow::new("memory").build(ui, || {
-				let total_addresses = Memory::LENGTH;
-				let lines_to_draw = total_addresses / 16 as usize;
-				let last_line_address = (lines_to_draw - 1) * 16 as usize;
-				let mut last_line_items = total_addresses % 16 as usize;
+				const TOTAL_ADDRESSES: usize = Memory::LENGTH;
+				const LINES_TO_DRAW: usize = TOTAL_ADDRESSES / 16;
+				const LAST_LINE_ADDRESS: u16 = ((LINES_TO_DRAW - 1) * 16) as u16;
+				let mut last_line_items = TOTAL_ADDRESSES as u16 % 16;
 
 				if last_line_items == 0 {
-					last_line_items = 16 as usize
+					last_line_items = 16
 				}
 
-				let clipper = ListClipper::new(lines_to_draw as i32);
+				let clipper = ListClipper::new(LINES_TO_DRAW as i32);
 				let mut ctoken = clipper.begin(ui);
 
 				while ctoken.step() {
 					for offset in ctoken.display_start()..ctoken.display_end() {
-						let address = offset as usize * 16 as usize;
+						let address = offset as u16 * 16;
 
 						match address {
 							0x100 | 0x8000 | 0xA000 | 0xC000 | 0xE000 | 0xFE00 | 0xFEA0
@@ -209,10 +209,10 @@ impl Application for Emulator {
 							_ => {}
 						}
 
-						let max_items = 16 as usize;
+						let max_items = 16;
 
 						let mut item_count = max_items;
-						if address == last_line_address {
+						if address == LAST_LINE_ADDRESS {
 							item_count = last_line_items;
 						}
 
@@ -222,7 +222,7 @@ impl Application for Emulator {
 						// display address content (hex)
 						for base in 0..item_count {
 							ui.same_line();
-							ui.text(format!("{:>02X}", memory[address + base]))
+							ui.text(format!("{:>02X}", memory.read(address + base)))
 						}
 
 						for _ in item_count..max_items {
@@ -235,7 +235,7 @@ impl Application for Emulator {
 						let mut text = "| ".to_string();
 
 						for base in 0..item_count {
-							let byte = memory[address + base] as char;
+							let byte = memory.read(address + base) as char;
 							let c = if byte.is_ascii_control() || byte.is_ascii_whitespace() {
 								' '
 							} else {

@@ -2,19 +2,18 @@
 
 mod cartridge;
 
-use std::ops::{Index, IndexMut};
-
 use self::cartridge::Cartridge;
+use crate::ppu::PPU;
 
 /// Memory
 pub struct Memory {
 	pub cartridge: Cartridge,
 	ram: [u8; 0x2000],
+	hram: [u8; 0x7F],
 	serial_io: [u8; 0x4C],
+	pub ppu: PPU,
 	/// Interrupt enable
 	pub int_enable: u8,
-	vram: [u8; 0x2000],
-	boot_ram: [u8; 0x7F],
 }
 
 impl Default for Memory {
@@ -33,64 +32,52 @@ impl Memory {
 			ram: [0; 0x2000],
 			serial_io: [0; 0x4C],
 			int_enable: 0,
-			vram: [0; 0x2000],
-			boot_ram: [0; 0x7F],
+			ppu: PPU::new(),
+			hram: [0; 0x7F],
 		}
 	}
 
-	pub fn get(&self, addr: usize) -> Option<u8> {
+	pub fn get(&self, addr: u16) -> Option<u8> {
+		let addr = addr as usize;
 		let val = match addr {
-			0x0000..=0x7fff => self.cartridge[addr],
-			0xc000..=0xdfff => self.ram[addr & 0x1fff],
-			0xff00..=0xff4C => self.serial_io[addr & 0x7F],
+			0x0000..0x8000 => self.cartridge.read(addr), // cartrige rom
+			0x8000..0xA000 => self.ppu.read(addr),       // vram
+			0xA000..0xC000 => self.cartridge.read(addr), // switchable ram bank
+			0xC000..0xE000 => self.ram[addr & 0x1FFF],   // internal ram
+			0xE000..0xFE00 => self.ram[(addr - 0x2000) & 0x1FFF], // copy of internal ram
+			0xFE00..0xFEA0 => self.ppu.read(addr),       // sprite attrib memory
+			0xFEA0..0xFF00 => 0,                         // prohibited
+			0xFF00..0xFF40 => 0,                         // ???
+			0xFF40..0xFF4C => self.ppu.read(addr),       // PPU (actually io but only need ppu atm)
+			0xFF4C..0xFF80 => 0,                         // ???
+			0xFF80..0xFFFF => self.hram[addr & 0x7f],    // HRAM
+			0xFFFF => self.int_enable,                   // Interrupt enable
 			_ => return None,
 		};
 
 		Some(val)
 	}
-}
 
-impl Index<usize> for Memory {
-	type Output = u8;
-
-	fn index(&self, addr: usize) -> &Self::Output {
-		match addr {
-			0x0000..0x8000 => &self.cartridge[addr],     // cartrige rom
-			0x8000..0xA000 => &self.vram[addr - 0x8000], // vram
-			0xA000..0xC000 => &0,                        // switchable ram bank
-			0xC000..0xE000 => &self.ram[addr & 0x1fff],  // internal ram
-			0xE000..0xFE00 => &0,                        // copy of internal ram
-			0xFE00..0xFEA0 => &0,                        // sprite attrib memory
-			0xFEA0..0xFF00 => &0,                        // empty but usable for io
-			0xFF00..0xFF4C => &self.serial_io[addr & 0x7F], // io ports
-			0xFF4C..0xFF80 => &0,                        // empty but usable for io
-			0xFF80..0xFFFF => &self.boot_ram[addr - 0xFF80], // internal ram,
-			0xFFFF => &self.int_enable,                  // interupt enable register,
-			_ => unreachable!(),
-		}
+	pub fn read(&self, addr: u16) -> u8 {
+		unsafe { self.get(addr).unwrap_unchecked() }
 	}
-}
 
-impl IndexMut<usize> for Memory {
-	fn index_mut(&mut self, addr: usize) -> &mut Self::Output {
+	pub fn write(&mut self, addr: u16, val: u8) {
+		let addr = addr as usize;
 		match addr {
-			0x0000..0x8000 => &mut self.cartridge[addr], // cartrige rom
-			0x8000..0xA000 => &mut self.vram[addr - 0x8000], // vram
-			// 0xA000..0xC000 => &mut 0,                        // switchable ram bank
-			0xC000..0xE000 => &mut self.ram[addr & 0x1fff], // internal ram
-			// 0xE000..0xFE00 => &mut 0,                        // copy of internal ram
-			// 0xFE00..0xFEA0 => &mut 0,                        // sprite attrib memory
-			// 0xFEA0..0xFF00 => &mut 0,                        // empty but usable for io
-			0xFF00..0xFF4C => &mut self.serial_io[addr & 0x7F], // io ports
-			// 0xFF4C..0xFF80 => &mut 0,                        // empty but usable for io
-			0xFF80..0xFFFF => &mut self.boot_ram[addr - 0xFF80], // internal ram,
-			0xFFFF => &mut self.int_enable,                      // interupt enable register,
-			_ => {
-				panic!(
-					"{:#06X} is not a valid memory address/not supported yet",
-					addr
-				);
-			}
-		}
+			0x0000..0x8000 => self.cartridge.write(addr, val), // cartrige rom
+			0x8000..0xA000 => self.ppu.write(addr, val),       // vram
+			0xA000..0xC000 => self.cartridge.write(addr, val), // switchable ram bank
+			0xC000..0xE000 => self.ram[addr & 0x1FFF] = val,   // internal ram
+			0xE000..0xFE00 => self.ram[(addr - 0x2000) & 0x1FFF] = val, // copy of internal ram
+			0xFE00..0xFEA0 => self.ppu.write(addr, val),       // sprite attrib memory
+			0xFEA0..0xFF00 => (),                              // prohibited
+			0xFF00..0xFF40 => (),                              // ???
+			0xFF40..0xFF4C => self.ppu.write(addr, val),       // PPU
+			0xFF4C..0xFF80 => (),                              // ???
+			0xFF80..0xFFFF => self.hram[addr & 0x7f] = val,    // HRAM
+			0xFFFF => self.int_enable = val,                   // Interrupt enable
+			_ => (),
+		};
 	}
 }

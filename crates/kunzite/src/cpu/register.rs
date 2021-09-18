@@ -146,7 +146,7 @@ impl Cpu {
 	pub fn read(&self, reg: Register8) -> u8 {
 		unsafe {
 			match reg {
-				Register8::DerefHL => self.memory[self.registers[Register16::HL] as usize],
+				Register8::DerefHL => self.memory.read(self.registers[Register16::HL]),
 				Register8::A => self.registers.reg8.a,
 				Register8::B => self.registers.reg8.b,
 				Register8::C => self.registers.reg8.c,
@@ -161,7 +161,7 @@ impl Cpu {
 
 	pub fn write(&mut self, reg: Register8, val: u8) {
 		match reg {
-			Register8::DerefHL => self.memory[self.registers[Register16::HL] as usize] = val,
+			Register8::DerefHL => self.memory.write(self.registers[Register16::HL], val),
 			Register8::A => self.registers.reg8.a = val,
 			Register8::B => self.registers.reg8.b = val,
 			Register8::C => self.registers.reg8.c = val,

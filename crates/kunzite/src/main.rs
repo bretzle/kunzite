@@ -3,12 +3,14 @@
 // #![deny(missing_docs)]
 #![feature(exclusive_range_pattern)]
 #![feature(const_panic)]
+#![feature(option_result_unwrap_unchecked)]
 
 pub mod cpu;
 pub mod display;
 pub mod emulator;
 pub mod gb;
 pub mod memory;
+pub mod ppu;
 mod util;
 
 use color_eyre::Result;

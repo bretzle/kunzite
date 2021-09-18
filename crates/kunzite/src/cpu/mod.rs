@@ -60,7 +60,8 @@ impl Cpu {
 			Instruction::StoreImm8(reg, val) => self.write(reg, val),
 			Instruction::StoreAToHlAddr(inc) => {
 				let hl = self.registers[Register16::HL];
-				self.memory[hl as usize] = self.read(Register8::A);
+				let val = self.read(Register8::A);
+				self.memory.write(hl, val);
 
 				self.last_mem_addr = hl as usize;
 
@@ -73,7 +74,7 @@ impl Cpu {
 			}
 			Instruction::LoadAFromHlAddr(inc) => {
 				let hl = self.registers[Register16::HL];
-				self.write(Register8::A, self.memory[hl as usize]);
+				self.write(Register8::A, self.memory.read(hl));
 
 				let hl = &mut self.registers[Register16::HL];
 				if inc {
@@ -83,12 +84,13 @@ impl Cpu {
 				}
 			}
 			Instruction::StoreATo16(reg) => {
-				let addr = self.registers[reg] as usize;
-				self.memory[addr] = self.read(Register8::A);
+				let addr = self.registers[reg];
+				let val = self.read(Register8::A);
+				self.memory.write(addr, val);
 			}
 			Instruction::LoadAFromReg16Addr(reg) => {
 				let addr = self.registers[reg];
-				self.write(Register8::A, self.memory[addr as usize]);
+				self.write(Register8::A, self.memory.read(addr));
 			}
 			Instruction::Mov8(dest, src) => self.write(dest, self.read(src)),
 			Instruction::Jr(f, r) => match f {
@@ -228,23 +230,26 @@ impl Cpu {
 			Instruction::LdSpHl => todo!("{:?}", instruction),
 			Instruction::StoreHA(offset) => {
 				let addr = 0xFF00 + offset as u16;
-				self.memory[addr as usize] = self.read(Register8::A);
+				let val = self.read(Register8::A);
+				self.memory.write(addr, val);
 				self.last_mem_addr = addr as usize;
 			}
 			Instruction::LoadHA(offset) => {
-				self.write(Register8::A, self.memory[0xFF00 + offset as usize]);
+				self.write(Register8::A, self.memory.read(0xFF00 + offset as u16));
 			}
 			Instruction::StoreCA => {
 				let addr = 0xFF00 + self.read(Register8::C) as u16;
-				self.memory[addr as usize] = self.read(Register8::A);
+				let val = self.read(Register8::A);
+				self.memory.write(addr, val);
 				self.last_mem_addr = addr as usize;
 			}
 			Instruction::LoadCA => todo!("{:?}", instruction),
 			Instruction::StoreAAtAddress(addr) => {
-				self.memory[addr as usize] = self.read(Register8::A);
+				let val = self.read(Register8::A);
+				self.memory.write(addr, val);
 			}
 			Instruction::LoadAFromAddress(addr) => {
-				self.write(Register8::A, self.memory[addr as usize]);
+				self.write(Register8::A, self.memory.read(addr));
 			}
 			Instruction::Rlc(reg) => self._rlc(reg),
 			Instruction::Rrc(reg) => self._rrc(reg),
@@ -273,13 +278,13 @@ impl Cpu {
 
 		*sp -= 1;
 
-		self.memory[*sp as usize] = val;
+		self.memory.write(*sp, val);
 	}
 
 	fn pop(&mut self) -> u8 {
 		let sp = &mut self.registers[Register16::SP];
 
-		let val = self.memory[*sp as usize];
+		let val = self.memory.read(*sp);
 
 		*sp += 1;
 
@@ -446,7 +451,7 @@ impl Cpu {
 		}
 	}
 
-	fn _rrc(&mut self, reg: Register8) {
+	fn _rrc(&mut self, _reg: Register8) {
 		todo!()
 	}
 

@@ -26,10 +26,10 @@ impl DecodeInfo {
 		let p = y >> 1;
 		let q = y % 2;
 
-		let d = rom[cpu.pc as usize + 1] as i8;
-		let n = rom[cpu.pc as usize + 1];
+		let d = rom.read(cpu.pc + 1) as i8;
+		let n = rom.read(cpu.pc + 1);
 		let nn = if cpu.pc as usize + 2 < 0x10000 {
-			((rom[cpu.pc as usize + 2] as u16) << 8) | n as u16
+			((rom.read(cpu.pc + 2) as u16) << 8) | n as u16
 		} else {
 			0
 		};
@@ -109,14 +109,14 @@ impl Cpu {
 	pub(crate) fn parse_instruction(&self) -> Option<Instruction> {
 		let rom = &self.memory;
 
-		if let Some(opcode) = rom.get(self.pc as usize) {
+		if let Some(opcode) = rom.get(self.pc) {
 			let info = DecodeInfo::new(self, opcode);
 
 			#[cfg(feature = "debug_opcode")]
 			println!("{:?}", info);
 
 			let inst = match opcode {
-				0xCB => self.parse_cb_inst(DecodeInfo::new(self, rom[self.pc as usize + 1])),
+				0xCB => self.parse_cb_inst(DecodeInfo::new(self, rom.read(self.pc + 1))),
 				_ => self.parse_normal_inst(info),
 			};
 
