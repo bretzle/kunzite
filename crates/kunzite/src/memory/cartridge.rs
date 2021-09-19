@@ -52,30 +52,36 @@ impl Cartridge {
 	pub fn insert_rom<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
 		let mut file = File::open(path)?;
 
-		// let size = file.read_to_end(&mut self.rom[0..])?;
 		let size = file.read_to_end(&mut self.rom)?;
 		println!("Rom size: {} bytes", size);
 
-		let header = self.header.insert(CartridgeHeader {
-			name: slice_to_string(&self.rom[0x134..0x143]),
-			manuf: slice_to_string(&self.rom[0x13F..0x142]),
-			cgb: self.rom[0x143],
-			licensee: slice_to_string(&self.rom[0x144..0x145]),
-			sgb: self.rom[0x146],
-			cartridge_type: self.rom[0x147],
-			rom_size: self.rom[0x148],
-			ram_size: self.rom[0x149],
-			dest_code: self.rom[0x14A],
-			old_licesee: self.rom[0x14B],
-			version_number: self.rom[0x14C],
-			header_checksum: self.rom[0x14D],
-		});
+		if size > 256 {
+			let header = self.header.insert(CartridgeHeader {
+				name: slice_to_string(&self.rom[0x134..0x143]),
+				manuf: slice_to_string(&self.rom[0x13F..0x142]),
+				cgb: self.rom[0x143],
+				licensee: slice_to_string(&self.rom[0x144..0x145]),
+				sgb: self.rom[0x146],
+				cartridge_type: self.rom[0x147],
+				rom_size: self.rom[0x148],
+				ram_size: self.rom[0x149],
+				dest_code: self.rom[0x14A],
+				old_licesee: self.rom[0x14B],
+				version_number: self.rom[0x14C],
+				header_checksum: self.rom[0x14D],
+			});
 
-		self.ram = vec![0; 2 << header.ram_size];
-		self.mbc_type = header.cartridge_type;
-		self.num_rom_banks = 2 << header.rom_size;
+			self.ram = vec![0; 2 << header.ram_size];
+			self.mbc_type = header.cartridge_type;
+			self.num_rom_banks = 2 << header.rom_size;
 
-		println!("{:#?}", header);
+			println!("{:#?}", header);
+		} else {
+			for _ in 256..0x4000 {
+				self.rom.push(0);
+			}
+			self.num_rom_banks = 1;
+		}
 
 		Ok(())
 	}

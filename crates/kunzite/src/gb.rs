@@ -39,7 +39,17 @@ impl Gb {
 	}
 
 	/// fully execute the next instruction
-	pub fn step(&mut self) {
+	pub fn step(&mut self) -> u8 {
 		self.cpu.step()
+	}
+
+	pub fn redraw(&mut self) -> bool {
+		let redraw = self.cpu.memory.ppu.redraw;
+
+		if redraw {
+			self.cpu.memory.ppu.redraw = !self.cpu.memory.ppu.redraw;
+		}
+
+		redraw
 	}
 }

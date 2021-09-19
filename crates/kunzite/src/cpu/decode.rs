@@ -14,11 +14,12 @@ struct DecodeInfo {
 	d: i8,
 	n: u8,
 	nn: u16,
+	prefix: Option<u8>,
 }
 
 impl DecodeInfo {
 	#[allow(clippy::many_single_char_names)]
-	pub fn new(cpu: &Cpu, opcode: u8) -> Self {
+	pub fn new(cpu: &Cpu, opcode: u8, prefix: Option<u8>) -> Self {
 		let rom = &cpu.memory;
 		let x = (opcode >> 6) & 0x3;
 		let y = (opcode >> 3) & 0x7;
@@ -44,6 +45,7 @@ impl DecodeInfo {
 			d,
 			n,
 			nn,
+			prefix,
 		}
 	}
 
@@ -56,7 +58,7 @@ impl Debug for DecodeInfo {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "pc     = {:04X}\nopcode = {:#04X}\nx      = {:4}\ny      = {:4}\nz      = \
 			{:4}\np      = {:4}\nq      = {:4}\nd      = {:4}\nn      = {:04X}\nnn     = \
-			{:04X}\n-------------", self.pc, self.opcode(), self.x, self.y, self.z, self.p, self.q, self.d, self.n, self.nn)
+			{:04X}\nprefix = {:?}\n-------------", self.pc, self.opcode(), self.x, self.y, self.z, self.p, self.q, self.d, self.n, self.nn,self.prefix)
 	}
 }
 
@@ -110,13 +112,15 @@ impl Cpu {
 		let rom = &self.memory;
 
 		if let Some(opcode) = rom.get(self.pc) {
-			let info = DecodeInfo::new(self, opcode);
+			let info = DecodeInfo::new(self, opcode, None);
 
 			#[cfg(feature = "debug_opcode")]
 			println!("{:?}", info);
 
 			let inst = match opcode {
-				0xCB => self.parse_cb_inst(DecodeInfo::new(self, rom.read(self.pc + 1))),
+				0xCB => {
+					self.parse_cb_inst(DecodeInfo::new(self, rom.read(self.pc + 1), Some(0xCB)))
+				}
 				_ => self.parse_normal_inst(info),
 			};
 
@@ -259,7 +263,7 @@ impl Cpu {
 					0 => Instruction::Push(RP2[p as usize]),
 					1 => match p {
 						0 => Instruction::Call(None, nn),
-						1..=3 => panic!("removed"),
+						1..=3 => panic!("removed\n{:#?}", info),
 						_ => unreachable!(),
 					},
 					_ => unreachable!(),

@@ -1,6 +1,9 @@
 //!
 
-use std::{collections::HashSet, time::Duration};
+use std::{
+	collections::HashSet,
+	time::{Duration, Instant},
+};
 
 use color_eyre::Report;
 use gui::{prelude::*, Application};
@@ -19,40 +22,6 @@ pub struct Emulator {
 }
 
 impl Emulator {
-	fn step(&mut self, num: usize) {
-		for _ in 0..num {
-			// if self.gb.cpu.pc == 0xC000 {
-			// 	continue;
-			// }
-			if let Some(i) = self.gb.cpu.parse_instruction() {
-				if self.run {
-					match i {
-						Instruction::Jp(_, 0xC000) | Instruction::Rst(_) => {
-							println!("here");
-							self.run = false;
-							return;
-						}
-						_ => (),
-					}
-				}
-				self.locs.insert(i);
-			}
-
-			self.gb.step();
-
-			let s = self.gb.cpu.memory.read(0xFF02);
-
-			if s != 0 {
-				dbg!(s);
-			}
-
-			if s == 0x81 {
-				println!("{}", self.gb.cpu.memory.read(0xFF01));
-				self.gb.cpu.memory.write(0xFF02, 0);
-			}
-		}
-	}
-
 	fn skip(&mut self, count: usize) {
 		for _ in 0..count {
 			let inst = self.gb.cpu.parse_instruction().unwrap();
@@ -69,8 +38,7 @@ impl Application for Emulator {
 
 		gb.boot();
 
-		// gb.insert_rom("roms/bootloader.gb")
-		gb.insert_rom("roms/cpu_instrs.gb")
+		gb.insert_rom("roms/dmg-acid2.gb")
 			.expect("Failed to load ROM.");
 
 		Self {
@@ -88,7 +56,7 @@ impl Application for Emulator {
 				// repeat: false,
 				..
 			} => {
-				self.step(1);
+				self.gb.step();
 			}
 			Event::KeyDown {
 				keycode: Some(Keycode::Return),
@@ -118,8 +86,27 @@ impl Application for Emulator {
 
 	fn update(&mut self, _frame_time: &Duration, _running: &mut bool) -> Result<(), Self::Error> {
 		if self.run {
-			self.step(100);
+			// self.step(100);
+			// let now = Instant::now();
+			// let mut elapsed_tick: u32 = 0;
+
+			// Emulate one frame
+			// while elapsed_tick < 456 * (144 + 10) {
+			// elapsed_tick += self.gb.step() as u32;
+			// }
+
+			for _ in 0..100 {
+				self.gb.step();
+			}
+
+			// let wait = Duration::from_micros(1000000 / 60);
+			// let elapsed = now.elapsed();
+
+			// if wait > elapsed {
+			// 	std::thread::sleep(wait - elapsed);
+			// }
 		}
+
 		Ok(())
 	}
 
@@ -163,22 +150,9 @@ impl Application for Emulator {
 				self.gb.cpu.registers.flag(Flag::H)
 			));
 			ui.text(format!("Carry: {}", self.gb.cpu.registers.flag(Flag::C)));
+			ui.text(format!("Ticks: {}", self.gb.cpu.tick));
 		});
 
-		// Window::new(im_str!("memory")).build(ui, || {
-		// 	//
-		// 	let addr = self.gb.cpu.last_mem_addr;
-
-		// 	let range = if addr >= 3 {
-		// 		(addr - 3)..(addr + 3)
-		// 	} else {
-		// 		0..(addr + 7)
-		// 	};
-
-		// 	for idx in range {
-		// 		ui.text(format!("0x{:04X}: {:02X}", idx, self.gb.memory[idx]));
-		// 	}
-		// });
 		Window::new(im_str!("Memory")).build(ui, || {
 			ui.set_next_item_width(-1.);
 
@@ -251,6 +225,53 @@ impl Application for Emulator {
 					}
 				}
 			});
+		});
+
+		const WIDTH: u32 = 160;
+		const SCREEN_WIDTH: f32 = 160.0;
+		const SCREEN_HEIGHT: f32 = 144.0;
+		const ZOOM_FACTOR: f32 = 1.0;
+
+		Window::new(im_str!("Display")).build(ui, || {
+			let drawer = ui.get_window_draw_list();
+
+			let tl = ui.cursor_screen_pos();
+			let br = [
+				tl[0] + SCREEN_WIDTH * ZOOM_FACTOR,
+				tl[1] + SCREEN_HEIGHT * ZOOM_FACTOR,
+			];
+
+			// if self.gb.redraw() {
+			// 	self.screen.update(self.gb.cpu.memory.ppu.frame_buffer());
+			// }
+
+			Image::new(0.into(), [
+				SCREEN_WIDTH * ZOOM_FACTOR,
+				SCREEN_HEIGHT * ZOOM_FACTOR,
+			])
+			.build(ui);
+
+			drawer
+				.add_rect(
+					[tl[0] - 1.0, tl[1] - 1.0],
+					[br[0] + 1.0, br[1] + 1.0],
+					ImColor32::WHITE,
+				)
+				.build();
+
+			for (i, &unit) in self.gb.cpu.memory.ppu.frame_buffer().iter().enumerate() {
+				let i = i as u32;
+
+				let p1 = [
+					(i % WIDTH) as f32 * ZOOM_FACTOR + tl[0],
+					(i / WIDTH) as f32 * ZOOM_FACTOR + tl[1],
+				];
+				let p2 = [p1[0] + ZOOM_FACTOR, p1[1] + ZOOM_FACTOR];
+				drawer
+					.add_rect(p1, p2, ImColor32::from_rgb(unit, unit, unit))
+					.filled(true)
+					.build();
+			}
 		});
 	}
 }

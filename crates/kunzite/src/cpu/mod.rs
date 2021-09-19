@@ -19,10 +19,13 @@ pub struct Cpu {
 	pub pc: u16,
 	/// Cpu registers
 	pub registers: Registers,
-	pub interupts: bool,
 
 	pub last_mem_addr: usize,
 	pub memory: Memory,
+
+	pub tick: u8, // T-cycle
+	halted: bool,
+	ime: bool,
 }
 
 macro_rules! update_flags {
@@ -42,18 +45,84 @@ macro_rules! update_flags {
 
 impl Cpu {
 	/// Execute an instruction and increment pc
-	pub fn step(&mut self) {
-		if let Some(inst) = self.parse_instruction() {
-			self.pc += inst.size();
-			self.execute(inst);
+	pub fn step(&mut self) -> u8 {
+		let mut total_tick = 0;
+
+		self.tick = 0;
+
+		if self.halted {
+			self.tick += 4;
+		} else {
+			if let Some(inst) = self.parse_instruction() {
+				self.pc += inst.size();
+				self.execute(inst);
+			}
+		}
+
+		total_tick += self.tick;
+
+		self.memory.update(self.tick);
+
+		if self.ime {
+			self.tick = 0;
+			self.check_irqs();
+			self.memory.update(self.tick);
+
+			total_tick += self.tick;
+		}
+
+		total_tick
+	}
+
+	/// Checks IRQs and execute ISRs if requested.
+	fn check_irqs(&mut self) {
+		// Bit 0 has the highest priority
+		for i in 0..5 {
+			let irq = self.memory.int_flag & (1 << i) > 0;
+			let ie = self.memory.int_enable & (1 << i) > 0;
+
+			// If interrupt is requested and enabled
+			if irq && ie {
+				self.call_isr(i);
+				break;
+			}
 		}
 	}
 
+	/// Calls requested interrupt service routine.
+	fn call_isr(&mut self, id: u8) {
+		// Reset corresponding bit in IF
+		self.memory.int_flag &= !(1 << id);
+		// Clear IME (disable any further interrupts)
+		self.ime = false;
+		self.halted = false;
+
+		let isr: u16 = match id {
+			0 => 0x40,
+			1 => 0x48,
+			2 => 0x50,
+			3 => 0x80,
+			4 => 0x70,
+			_ => panic!("Invalid IRQ id {}", id),
+		};
+
+		self.tick += 8;
+
+		println!("Calling ISR 0x{:02X}", isr);
+
+		self._call(isr);
+	}
+
 	fn execute(&mut self, instruction: Instruction) {
+		self.tick += instruction.ticks();
 		match instruction {
 			Instruction::Nop => {} // TODO: does this do anything?
 			Instruction::Stop => todo!("{:?}", instruction),
-			Instruction::Halt => todo!("{:?}", instruction),
+			Instruction::Halt => {
+				if self.ime {
+					self.halted = true;
+				}
+			}
 			Instruction::StoreImm16(reg, val) => {
 				self.registers[reg] = val;
 			}
@@ -96,18 +165,18 @@ impl Cpu {
 			Instruction::Jr(f, r) => match f {
 				Some(flag) => {
 					if self.registers.flag(flag) {
-						self.pc = ((self.pc) as i16 + r as i16) as u16
+						self._jr((self.pc as i16 + r as i16) as u16);
 					}
 				}
-				None => self.pc = ((self.pc - instruction.size()) as i16 + r as i16 - 1) as u16,
+				None => self._jr(((self.pc - instruction.size()) as i16 + r as i16 - 1) as u16),
 			},
 			Instruction::Jp(f, addr) => match f {
 				Some(flag) => {
 					if self.registers.flag(flag) {
-						self.pc = addr;
+						self._jp(addr);
 					}
 				}
-				None => self.pc = addr,
+				None => self._jp(addr),
 			},
 			Instruction::Inc8(reg) => {
 				let orig = self.read(reg);
@@ -196,20 +265,30 @@ impl Cpu {
 				}
 			}
 			Instruction::Rrca => todo!("{:?}", instruction),
-			Instruction::Rra => todo!("{:?}", instruction),
+			Instruction::Rra => {
+				self._rr(Register8::A);
+
+				update_flags! {
+					self,
+					z: false,
+				}
+			}
 			Instruction::StoreImm16AddrSp(_) => todo!("{:?}", instruction),
 			Instruction::AddHl(_) => todo!("{:?}", instruction),
 			Instruction::Ret(f) => match f {
-				Some(_flag) => todo!("{:?}", instruction),
-				None => {
-					let lower = self.pop() as u16;
-					let upper = self.pop() as u16;
-					self.pc = (upper << 8) | lower;
+				Some(flag) => {
+					if self.registers.flag(flag) {
+						self._ret()
+					}
 				}
+				None => self._ret(),
 			},
-			Instruction::Reti => todo!("{:?}", instruction),
-			Instruction::Di => self.interupts = false,
-			Instruction::Ei => self.interupts = true,
+			Instruction::Reti => {
+				self.ime = false;
+				self._ret()
+			}
+			Instruction::Di => self.ime = false,
+			Instruction::Ei => self.ime = true,
 			Instruction::Call(f, jump) => match f {
 				Some(flag) => {
 					if self.registers.flag(flag) {
@@ -257,8 +336,8 @@ impl Cpu {
 			Instruction::Rl(reg) => self._rl(reg),
 			Instruction::Sla(_) => todo!("{:?}", instruction),
 			Instruction::Sra(_) => todo!("{:?}", instruction),
-			Instruction::Swap(_) => todo!("{:?}", instruction),
-			Instruction::Srl(_) => todo!("{:?}", instruction),
+			Instruction::Swap(reg) => todo!("{:?}", instruction),
+			Instruction::Srl(reg) => self.srl(reg),
 			Instruction::Bit(bit, reg) => {
 				let set = self.read(reg) & (1 << bit) != 0;
 				update_flags! {
@@ -268,8 +347,16 @@ impl Cpu {
 					h: 1,
 				}
 			}
-			Instruction::Res(_, _) => todo!("{:?}", instruction),
-			Instruction::Set(_, _) => todo!("{:?}", instruction),
+			Instruction::Res(bit, reg) => {
+				let orig = self.read(reg);
+				let val = orig & !(1 << bit);
+				self.write(reg, val);
+			}
+			Instruction::Set(bit, reg) => {
+				let orig = self.read(reg);
+				let val = orig | (1 << bit);
+				self.write(reg, val);
+			}
 		}
 	}
 
@@ -419,6 +506,17 @@ impl Cpu {
 		self.push(upper(self.pc));
 		self.push(lower(self.pc));
 		self.pc = jump;
+		self.tick += 12;
+	}
+
+	fn _jr(&mut self, addr: u16) {
+		self.tick += 4;
+		self.pc = addr;
+	}
+
+	fn _jp(&mut self, addr: u16) {
+		self.tick += 4;
+		self.pc = addr;
 	}
 
 	fn _rl(&mut self, reg: Register8) {
@@ -467,6 +565,28 @@ impl Cpu {
 			h: false,
 			c: orig >> 7 & 1 == 1,
 		}
+	}
+
+	/// Shift right through carry
+	fn srl(&mut self, reg: Register8) {
+		let orig = self.read(reg);
+		let res = orig >> 1;
+		self.write(reg, res);
+
+		update_flags! {
+			self,
+			z: res == 0,
+			n: false,
+			h: false,
+			c: orig & 1 == 1,
+		}
+	}
+
+	fn _ret(&mut self) {
+		let lower = self.pop() as u16;
+		let upper = self.pop() as u16;
+		self.pc = (upper << 8) | lower;
+		self.tick += 12;
 	}
 }
 
