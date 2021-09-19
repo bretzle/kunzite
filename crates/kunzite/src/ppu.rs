@@ -55,6 +55,12 @@ pub struct PPU {
 	pub redraw: bool,
 }
 
+impl Default for PPU {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl PPU {
 	pub fn new() -> Self {
 		Self {
@@ -119,18 +125,18 @@ impl PPU {
 	pub fn write(&mut self, addr: usize, val: u8) {
 		match addr {
 			// VRAM
-			0x8000..=0x9FFF => {
+			0x8000..0xA000 => {
 				// VRAM is inaccessible during pixel transfer
 				if self.stat & 0x3 != 3 {
-					self.vram[(addr & 0x1fff) as usize] = val
+					self.vram[(addr & 0x1FFF) as usize] = val
 				}
 			}
 
 			// OAM
-			0xFE00..=0xFE9f => {
+			0xFE00..0xFEA0 => {
 				// OAM is only accessible during H-Blank and V-Blank
 				if self.stat & 0x3 == 0 || self.stat & 0x3 == 1 {
-					self.oam[(addr & 0x00ff) as usize] = val;
+					self.oam[(addr & 0x00FF) as usize] = val;
 				}
 			}
 
@@ -141,7 +147,7 @@ impl PPU {
 					self.counter = 0;
 
 					let mode = if val & 0x80 > 0 { 2 } else { 0 };
-					self.stat = (self.stat & 0xf8) | mode;
+					self.stat = (self.stat & 0xF8) | mode;
 					self.update_mode_interrupt();
 				}
 
@@ -160,8 +166,8 @@ impl PPU {
 			0xFF47 => self.bgp = val,
 			0xFF48 => self.obp0 = val,
 			0xFF49 => self.obp1 = val,
-			0xFF4a => self.wy = val,
-			0xFF4b => self.wx = val,
+			0xFF4A => self.wy = val,
+			0xFF4B => self.wx = val,
 
 			_ => unreachable!("Unexpected address: 0x{:04X}", addr),
 		}
@@ -231,7 +237,7 @@ impl PPU {
 				if self.counter >= 172 {
 					self.counter -= 172;
 					// Transition to H-Blank mode
-					self.stat = self.stat & 0xf8;
+					self.stat &= 0xf8;
 					self.update_mode_interrupt();
 				}
 			}
@@ -256,7 +262,7 @@ impl PPU {
 				}
 			}
 			// V-Blank (4560 clocks or 10 lines)
-			1 | _ => {
+			1 => {
 				if self.counter >= 456 {
 					self.counter -= 456;
 					self.ly += 1;
@@ -272,6 +278,7 @@ impl PPU {
 					self.update_lyc_interrupt();
 				}
 			}
+			_ => unreachable!(),
 		}
 	}
 
@@ -392,15 +399,13 @@ impl PPU {
 
 		for x in 0..SCREEN_W {
 			// Check if window is enabled
-			if self.lcdc & 0x20 > 0 {
-				if self.wy <= self.ly && self.wx == x + 7 {
-					tile_x = 0;
-					tile_y = (self.ly - self.wy) >> 3;
-					offset_x = 0;
-					offset_y = (self.ly - self.wy) & 0x7;
-					tile = self.fetch_window_tile(tile_x, tile_y, offset_y);
-					window = true;
-				}
+			if self.lcdc & 0x20 > 0 && self.wy <= self.ly && self.wx == x + 7 {
+				tile_x = 0;
+				tile_y = (self.ly - self.wy) >> 3;
+				offset_x = 0;
+				offset_y = (self.ly - self.wy) & 0x7;
+				tile = self.fetch_window_tile(tile_x, tile_y, offset_y);
+				window = true;
 			}
 
 			let color_no = self.get_color_no(tile, 7 - offset_x);
@@ -438,7 +443,7 @@ impl PPU {
 			(tile_no as u16) << 4
 		} else {
 			// Use tile set #2 (0x0800-0x0fff) and #3 (0x1000-0x17ff)
-			(0x1000 as u16).wrapping_add(((tile_no as i8 as i16) << 4) as u16)
+			(0x1000u16).wrapping_add(((tile_no as i8 as i16) << 4) as u16)
 		};
 		let row_addr = tile_data_addr + (offset_y << 1) as u16;
 
@@ -485,7 +490,8 @@ impl PPU {
 			0 => 0xff,
 			1 => 0xaa,
 			2 => 0x55,
-			3 | _ => 0x00,
+			3 => 0x00,
+			_ => unreachable!(),
 		}
 	}
 

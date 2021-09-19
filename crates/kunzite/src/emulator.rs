@@ -2,10 +2,10 @@
 
 use color_eyre::Report;
 use gui::{prelude::*, Application};
-use std::{collections::HashSet, time::Duration};
+use std::time::Duration;
 
 use crate::{
-	cpu::instruction::{Flag, Instruction, Register16, Register8},
+	cpu::instruction::{Flag, Register16, Register8},
 	gb::Gb,
 	memory::Memory,
 };
@@ -14,34 +14,20 @@ use crate::{
 pub struct Emulator {
 	gb: Gb,
 	run: bool,
-	locs: HashSet<Instruction>,
-}
-
-impl Emulator {
-	fn skip(&mut self, count: usize) {
-		for _ in 0..count {
-			let inst = self.gb.cpu.parse_instruction().unwrap();
-			self.gb.cpu.pc += inst.size();
-		}
-	}
 }
 
 impl Application for Emulator {
 	type Error = Report;
 
 	fn setup() -> Self {
-		let mut gb = Gb::new();
+		let mut gb = Gb::create();
 
 		gb.boot();
 
 		gb.insert_rom("roms/dmg-acid2.gb")
 			.expect("Failed to load ROM.");
 
-		Self {
-			gb,
-			run: false,
-			locs: HashSet::new(),
-		}
+		Self { gb, run: false }
 	}
 
 	fn handle_event(&mut self, event: Event, running: &mut bool) -> Result<(), Self::Error> {
@@ -94,8 +80,9 @@ impl Application for Emulator {
 		Ok(())
 	}
 
+	#[allow(clippy::many_single_char_names)]
 	fn draw(&mut self, ui: &Ui) {
-		Window::new(im_str!("CPU State")).build(ui, || {
+		Window::new("CPU State").build(ui, || {
 			let a = self.gb.cpu.read(Register8::A);
 			let f = self.gb.cpu.registers.flags();
 			let af = self.gb.cpu.registers[Register16::AF];
@@ -126,7 +113,7 @@ impl Application for Emulator {
 			ui.text(format!("HL: {:02X}|{:02X} [{:04X}]", h, l, hl));
 			ui.text(format!("SP: {:04X}", self.gb.cpu.registers[Register16::SP]));
 
-			ui.text(format!("Flags:"));
+			ui.text("Flags:");
 			ui.text(format!("Zero: {}", self.gb.cpu.registers.flag(Flag::Z)));
 			ui.text(format!("Subtract: {}", self.gb.cpu.registers.flag(Flag::N)));
 			ui.text(format!(
@@ -137,10 +124,10 @@ impl Application for Emulator {
 			ui.text(format!("Ticks: {}", self.gb.cpu.tick));
 		});
 
-		Window::new(im_str!("Memory")).build(ui, || {
+		Window::new("Memory").build(ui, || {
 			ui.set_next_item_width(-1.);
 
-			Slider::new(im_str!("##"), 1, 16).build(ui, &mut 16);
+			Slider::new("##", 1, 16).build(ui, &mut 16);
 
 			let memory = &self.gb.cpu.memory;
 
@@ -211,10 +198,10 @@ impl Application for Emulator {
 			});
 		});
 
-		const WIDTH: u32 = 160;
-		const SCREEN_WIDTH: f32 = 160.0;
-		const SCREEN_HEIGHT: f32 = 144.0;
-		const ZOOM_FACTOR: f32 = 1.0;
+		// const WIDTH: u32 = 160;
+		// const SCREEN_WIDTH: f32 = 160.0;
+		// const SCREEN_HEIGHT: f32 = 144.0;
+		// const ZOOM_FACTOR: f32 = 1.0;
 
 		// Window::new(im_str!("Display")).build(ui, || {
 		// 	let drawer = ui.get_window_draw_list();

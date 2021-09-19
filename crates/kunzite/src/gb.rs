@@ -2,25 +2,20 @@
 
 use std::path::Path;
 
-use crate::{
-	cpu::{instruction::Register16, Cpu},
-	display::Display,
-};
+use crate::cpu::{instruction::Register16, Cpu};
 use color_eyre::Result;
 
 /// Brings all the components into a single package
 pub struct Gb {
 	/// the cpu
 	pub cpu: Cpu,
-	_display: Display,
 }
 
 impl Gb {
 	/// Create a new Gameboy instance
-	pub fn new() -> Self {
+	pub fn create() -> Self {
 		Self {
 			cpu: Cpu::default(),
-			_display: Display::new(),
 		}
 	}
 

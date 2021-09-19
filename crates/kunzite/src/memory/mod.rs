@@ -10,7 +10,7 @@ pub struct Memory {
 	pub cartridge: Cartridge,
 	ram: [u8; 0x2000],
 	hram: [u8; 0x7F],
-	serial_io: [u8; 0x4C],
+	_serial_io: [u8; 0x4C],
 	pub ppu: PPU,
 	/// Interrupt flag
 	pub int_flag: u8,
@@ -32,7 +32,7 @@ impl Memory {
 		Self {
 			cartridge: Cartridge::new(),
 			ram: [0; 0x2000],
-			serial_io: [0; 0x4C],
+			_serial_io: [0; 0x4C],
 			int_flag: 0,
 			int_enable: 0,
 			ppu: PPU::new(),

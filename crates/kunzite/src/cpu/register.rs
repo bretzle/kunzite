@@ -134,6 +134,7 @@ impl IndexMut<Register16> for Registers {
 	}
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for Registers {
 	fn default() -> Self {
 		Self {

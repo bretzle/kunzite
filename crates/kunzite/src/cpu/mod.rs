@@ -52,11 +52,9 @@ impl Cpu {
 
 		if self.halted {
 			self.tick += 4;
-		} else {
-			if let Some(inst) = self.parse_instruction() {
-				self.pc += inst.size();
-				self.execute(inst);
-			}
+		} else if let Some(inst) = self.parse_instruction() {
+			self.pc += inst.size();
+			self.execute(inst);
 		}
 
 		total_tick += self.tick;
@@ -336,7 +334,7 @@ impl Cpu {
 			Instruction::Rl(reg) => self._rl(reg),
 			Instruction::Sla(_) => todo!("{:?}", instruction),
 			Instruction::Sra(_) => todo!("{:?}", instruction),
-			Instruction::Swap(reg) => todo!("{:?}", instruction),
+			Instruction::Swap(_) => todo!("{:?}", instruction),
 			Instruction::Srl(reg) => self.srl(reg),
 			Instruction::Bit(bit, reg) => {
 				let set = self.read(reg) & (1 << bit) != 0;
