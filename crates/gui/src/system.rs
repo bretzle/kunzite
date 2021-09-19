@@ -1,20 +1,70 @@
-use crate::Options;
+use std::{borrow::Cow, collections::HashMap, rc::Rc};
+
+use crate::{prelude::DrawTexture, Options};
 use glium::{
+	backend::Facade,
 	glutin,
 	glutin::{event_loop::EventLoop, window::WindowBuilder},
-	Display,
+	texture::{ClientFormat, RawImage2d},
+	uniforms::{MagnifySamplerFilter, MinifySamplerFilter, SamplerBehavior},
+	Display, Texture2d,
 };
-use imgui::{Context, FontConfig, FontSource};
-use imgui_glium_renderer::Renderer;
+use imgui::{Context, FontConfig, FontSource, TextureId};
+use imgui_glium_renderer::{Renderer, Texture};
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
 pub struct System {
-	pub event_loop: EventLoop<()>,
-	pub display: glium::Display,
-	pub imgui: Context,
-	pub platform: WinitPlatform,
-	pub renderer: Renderer,
+	pub(crate) event_loop: EventLoop<()>,
+	pub(crate) display: glium::Display,
+	pub(crate) imgui: Context,
+	pub(crate) platform: WinitPlatform,
+	pub(crate) renderer: Renderer,
 	pub font_size: f32,
+	pub(crate) draw_textures: HashMap<TextureId, DrawTexture>,
+}
+
+impl System {
+	pub fn create_texture(&mut self, width: usize, height: usize) -> DrawTexture {
+		let gl_ctx = self.display.get_context();
+
+		let mut data = Vec::with_capacity(width * height);
+		let mut color = true;
+		for _ in 0..height {
+			for _ in 0..width {
+				// Insert RGB values
+				let val = if color { 255 } else { 0 };
+				color = !color;
+				data.push(val);
+				data.push(val);
+				data.push(val);
+			}
+			color = !color;
+		}
+
+		let raw = RawImage2d {
+			data: Cow::Borrowed(&data),
+			width: width as u32,
+			height: height as u32,
+			format: ClientFormat::U8U8U8,
+		};
+
+		let gl_texture = Texture2d::new(gl_ctx, raw).unwrap();
+
+		let default_texture = Texture {
+			texture: Rc::new(gl_texture),
+			sampler: SamplerBehavior {
+				magnify_filter: MagnifySamplerFilter::Nearest,
+				minify_filter: MinifySamplerFilter::Linear,
+				..Default::default()
+			},
+		};
+
+		let texture_id = self.renderer.textures().insert(default_texture);
+
+		let text = DrawTexture::new((width, height), data, texture_id);
+		self.draw_textures.insert(texture_id, text.clone());
+		text
+	}
 }
 
 pub fn init(options: &Options) -> System {
@@ -60,5 +110,6 @@ pub fn init(options: &Options) -> System {
 		platform,
 		renderer,
 		font_size,
+		draw_textures: HashMap::new(),
 	}
 }

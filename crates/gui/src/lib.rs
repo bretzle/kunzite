@@ -1,7 +1,9 @@
 mod event;
 mod system;
+mod textures;
 
 use glium::{
+	backend::Facade,
 	glutin::{event::Event, event_loop::ControlFlow},
 	Surface,
 };
@@ -10,7 +12,7 @@ use std::time::{Duration, Instant};
 use system::{init, System};
 
 pub mod prelude {
-	pub use crate::event::Event;
+	pub use crate::{event::Event, system::System, textures::*, Application};
 	pub use glium::glutin::event::{ModifiersState, VirtualKeyCode};
 	pub use imgui::*;
 }
@@ -18,7 +20,7 @@ pub mod prelude {
 pub trait Application {
 	type Error: std::fmt::Debug;
 
-	fn setup() -> Self;
+	fn setup(system: &mut System) -> Self;
 	fn handle_event(
 		&mut self,
 		event: prelude::Event,
@@ -43,16 +45,19 @@ impl Options {
 }
 
 pub fn run<App: 'static + Application>(options: Options) -> Result<(), App::Error> {
+	let mut system = init(&options);
+
+	let mut app = App::setup(&mut system);
+
 	let System {
 		event_loop,
 		display,
 		mut imgui,
 		mut platform,
 		mut renderer,
+		mut draw_textures,
 		..
-	} = init(&options);
-
-	let mut app = App::setup();
+	} = system;
 
 	let mut last_frame = Instant::now();
 	let mut running = true;
@@ -77,6 +82,12 @@ pub fn run<App: 'static + Application>(options: Options) -> Result<(), App::Erro
 			}
 			Event::RedrawRequested(_) => {
 				let ui = imgui.frame();
+
+				for (_, draw_texture) in draw_textures.iter_mut() {
+					if draw_texture.dirty() {
+						draw_texture.update(&mut renderer, display.get_context());
+					}
+				}
 
 				app.draw(&ui);
 

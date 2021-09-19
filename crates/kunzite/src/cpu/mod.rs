@@ -106,8 +106,6 @@ impl Cpu {
 
 		self.tick += 8;
 
-		println!("Calling ISR 0x{:02X}", isr);
-
 		self._call(isr);
 	}
 

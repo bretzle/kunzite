@@ -1,8 +1,8 @@
 //!
 
 use color_eyre::Report;
-use gui::{prelude::*, Application};
-use std::time::Duration;
+use gui::prelude::*;
+use std::time::{Duration, Instant};
 
 use crate::{
 	cpu::instruction::{Flag, Register16, Register8},
@@ -14,20 +14,39 @@ use crate::{
 pub struct Emulator {
 	gb: Gb,
 	run: bool,
+	screen_texture: DrawTexture,
+	ticks: u32,
+}
+
+impl Emulator {
+	fn update_screen(&mut self) {
+		let fb = self.gb.cpu.memory.ppu.frame_buffer();
+		self.screen_texture.refresh(|x, y| {
+			let v = fb[x + (y * 160)];
+			[v, v, v]
+		});
+	}
 }
 
 impl Application for Emulator {
 	type Error = Report;
 
-	fn setup() -> Self {
+	fn setup(system: &mut System) -> Self {
 		let mut gb = Gb::create();
+
+		let screen_texture = system.create_texture(160, 144);
 
 		gb.boot();
 
 		gb.insert_rom("roms/dmg-acid2.gb")
 			.expect("Failed to load ROM.");
 
-		Self { gb, run: false }
+		Self {
+			gb,
+			run: false,
+			screen_texture,
+			ticks: 0,
+		}
 	}
 
 	fn handle_event(&mut self, event: Event, running: &mut bool) -> Result<(), Self::Error> {
@@ -42,10 +61,7 @@ impl Application for Emulator {
 				VirtualKeyCode::Space => {
 					self.gb.step();
 				}
-				VirtualKeyCode::Return => {
-					println!("hi");
-					self.run = !self.run
-				}
+				VirtualKeyCode::Return => self.run = !self.run,
 				_ => {}
 			},
 			_ => {}
@@ -66,7 +82,11 @@ impl Application for Emulator {
 			// }
 
 			for _ in 0..100 {
-				self.gb.step();
+				self.ticks += self.gb.step() as u32;
+				if self.ticks >= 456 * (144 + 10) {
+					self.update_screen();
+					self.ticks = 0;
+				}
 			}
 
 			// let wait = Duration::from_micros(1000000 / 60);
@@ -198,51 +218,50 @@ impl Application for Emulator {
 			});
 		});
 
-		// const WIDTH: u32 = 160;
-		// const SCREEN_WIDTH: f32 = 160.0;
-		// const SCREEN_HEIGHT: f32 = 144.0;
-		// const ZOOM_FACTOR: f32 = 1.0;
+		const SCREEN_WIDTH: f32 = 160.0;
+		const SCREEN_HEIGHT: f32 = 144.0;
+		const ZOOM_FACTOR: f32 = 2.0;
 
-		// Window::new(im_str!("Display")).build(ui, || {
-		// 	let drawer = ui.get_window_draw_list();
+		Window::new("Display").build(ui, || {
+			// let drawer = ui.get_window_draw_list();
 
-		// 	let tl = ui.cursor_screen_pos();
-		// 	let br = [
-		// 		tl[0] + SCREEN_WIDTH * ZOOM_FACTOR,
-		// 		tl[1] + SCREEN_HEIGHT * ZOOM_FACTOR,
-		// 	];
+			// let tl = ui.cursor_screen_pos();
+			// let br = [
+			// 	tl[0] + SCREEN_WIDTH * ZOOM_FACTOR,
+			// 	tl[1] + SCREEN_HEIGHT * ZOOM_FACTOR,
+			// ];
 
-		// 	// if self.gb.redraw() {
-		// 	// 	self.screen.update(self.gb.cpu.memory.ppu.frame_buffer());
-		// 	// }
+			// if self.gb.redraw() {
+			// 	self.screen.update(self.gb.cpu.memory.ppu.frame_buffer());
+			// }
 
-		// 	Image::new(0.into(), [
-		// 		SCREEN_WIDTH * ZOOM_FACTOR,
-		// 		SCREEN_HEIGHT * ZOOM_FACTOR,
-		// 	])
-		// 	.build(ui);
+			Image::new(self.screen_texture.texture_id, [
+				SCREEN_WIDTH * ZOOM_FACTOR,
+				SCREEN_HEIGHT * ZOOM_FACTOR,
+			])
+			.build(ui);
 
-		// 	drawer
-		// 		.add_rect(
-		// 			[tl[0] - 1.0, tl[1] - 1.0],
-		// 			[br[0] + 1.0, br[1] + 1.0],
-		// 			ImColor32::WHITE,
-		// 		)
-		// 		.build();
+			// drawer
+			// 	.add_rect(
+			// 		[tl[0] - 1.0, tl[1] - 1.0],
+			// 		[br[0] + 1.0, br[1] + 1.0],
+			// 		ImColor32::WHITE,
+			// 	)
+			// 	.build();
 
-		// 	for (i, &unit) in self.gb.cpu.memory.ppu.frame_buffer().iter().enumerate() {
-		// 		let i = i as u32;
+			// for (i, &unit) in self.gb.cpu.memory.ppu.frame_buffer().iter().enumerate() {
+			// 	let i = i as u32;
 
-		// 		let p1 = [
-		// 			(i % WIDTH) as f32 * ZOOM_FACTOR + tl[0],
-		// 			(i / WIDTH) as f32 * ZOOM_FACTOR + tl[1],
-		// 		];
-		// 		let p2 = [p1[0] + ZOOM_FACTOR, p1[1] + ZOOM_FACTOR];
-		// 		drawer
-		// 			.add_rect(p1, p2, ImColor32::from_rgb(unit, unit, unit))
-		// 			.filled(true)
-		// 			.build();
-		// 	}
-		// });
+			// 	let p1 = [
+			// 		(i % WIDTH) as f32 * ZOOM_FACTOR + tl[0],
+			// 		(i / WIDTH) as f32 * ZOOM_FACTOR + tl[1],
+			// 	];
+			// 	let p2 = [p1[0] + ZOOM_FACTOR, p1[1] + ZOOM_FACTOR];
+			// 	drawer
+			// 		.add_rect(p1, p2, ImColor32::from_rgb(unit, unit, unit))
+			// 		.filled(true)
+			// 		.build();
+			// }
+		});
 	}
 }
