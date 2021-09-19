@@ -2,7 +2,3 @@
 members = [
 	"crates/*",
 ]
-
-[patch.crates-io]
-imgui-opengl-renderer = { path="crates/imgui-opengl-renderer" }
-imgui-sdl2 = { path="crates/imgui-sdl2" }

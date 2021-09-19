@@ -1,12 +1,8 @@
 //!
 
-use std::{
-	collections::HashSet,
-	time::{Duration, Instant},
-};
-
 use color_eyre::Report;
 use gui::{prelude::*, Application};
+use std::{collections::HashSet, time::Duration};
 
 use crate::{
 	cpu::instruction::{Flag, Instruction, Register16, Register8},
@@ -50,35 +46,23 @@ impl Application for Emulator {
 
 	fn handle_event(&mut self, event: Event, running: &mut bool) -> Result<(), Self::Error> {
 		match event {
-			Event::Quit { .. } => *running = false,
-			Event::KeyDown {
-				keycode: Some(Keycode::Space),
-				// repeat: false,
-				..
-			} => {
-				self.gb.step();
-			}
-			Event::KeyDown {
-				keycode: Some(Keycode::Return),
+			Event::Quit => *running = false,
+			Event::DroppedFile(_) => {}
+			Event::Keypress {
+				keycode: Some(key),
 				repeat: false,
 				..
-			} => {
-				self.run = !self.run;
-			}
-			Event::KeyDown {
-				keycode: Some(Keycode::Semicolon),
-				repeat: false,
-				..
-			} => {
-				self.skip(1);
-			}
-			Event::KeyDown {
-				keycode: Some(Keycode::P),
-				..
-			} => {
-				println!("{:#?}", self.locs)
-			}
-			_ => (),
+			} => match key {
+				VirtualKeyCode::Space => {
+					self.gb.step();
+				}
+				VirtualKeyCode::Return => {
+					println!("hi");
+					self.run = !self.run
+				}
+				_ => {}
+			},
+			_ => {}
 		}
 
 		Ok(())
@@ -156,7 +140,7 @@ impl Application for Emulator {
 		Window::new(im_str!("Memory")).build(ui, || {
 			ui.set_next_item_width(-1.);
 
-			Slider::new(im_str!("##")).range(1..=16).build(ui, &mut 16);
+			Slider::new(im_str!("##"), 1, 16).build(ui, &mut 16);
 
 			let memory = &self.gb.cpu.memory;
 
@@ -232,46 +216,46 @@ impl Application for Emulator {
 		const SCREEN_HEIGHT: f32 = 144.0;
 		const ZOOM_FACTOR: f32 = 1.0;
 
-		Window::new(im_str!("Display")).build(ui, || {
-			let drawer = ui.get_window_draw_list();
+		// Window::new(im_str!("Display")).build(ui, || {
+		// 	let drawer = ui.get_window_draw_list();
 
-			let tl = ui.cursor_screen_pos();
-			let br = [
-				tl[0] + SCREEN_WIDTH * ZOOM_FACTOR,
-				tl[1] + SCREEN_HEIGHT * ZOOM_FACTOR,
-			];
+		// 	let tl = ui.cursor_screen_pos();
+		// 	let br = [
+		// 		tl[0] + SCREEN_WIDTH * ZOOM_FACTOR,
+		// 		tl[1] + SCREEN_HEIGHT * ZOOM_FACTOR,
+		// 	];
 
-			// if self.gb.redraw() {
-			// 	self.screen.update(self.gb.cpu.memory.ppu.frame_buffer());
-			// }
+		// 	// if self.gb.redraw() {
+		// 	// 	self.screen.update(self.gb.cpu.memory.ppu.frame_buffer());
+		// 	// }
 
-			Image::new(0.into(), [
-				SCREEN_WIDTH * ZOOM_FACTOR,
-				SCREEN_HEIGHT * ZOOM_FACTOR,
-			])
-			.build(ui);
+		// 	Image::new(0.into(), [
+		// 		SCREEN_WIDTH * ZOOM_FACTOR,
+		// 		SCREEN_HEIGHT * ZOOM_FACTOR,
+		// 	])
+		// 	.build(ui);
 
-			drawer
-				.add_rect(
-					[tl[0] - 1.0, tl[1] - 1.0],
-					[br[0] + 1.0, br[1] + 1.0],
-					ImColor32::WHITE,
-				)
-				.build();
+		// 	drawer
+		// 		.add_rect(
+		// 			[tl[0] - 1.0, tl[1] - 1.0],
+		// 			[br[0] + 1.0, br[1] + 1.0],
+		// 			ImColor32::WHITE,
+		// 		)
+		// 		.build();
 
-			for (i, &unit) in self.gb.cpu.memory.ppu.frame_buffer().iter().enumerate() {
-				let i = i as u32;
+		// 	for (i, &unit) in self.gb.cpu.memory.ppu.frame_buffer().iter().enumerate() {
+		// 		let i = i as u32;
 
-				let p1 = [
-					(i % WIDTH) as f32 * ZOOM_FACTOR + tl[0],
-					(i / WIDTH) as f32 * ZOOM_FACTOR + tl[1],
-				];
-				let p2 = [p1[0] + ZOOM_FACTOR, p1[1] + ZOOM_FACTOR];
-				drawer
-					.add_rect(p1, p2, ImColor32::from_rgb(unit, unit, unit))
-					.filled(true)
-					.build();
-			}
-		});
+		// 		let p1 = [
+		// 			(i % WIDTH) as f32 * ZOOM_FACTOR + tl[0],
+		// 			(i / WIDTH) as f32 * ZOOM_FACTOR + tl[1],
+		// 		];
+		// 		let p2 = [p1[0] + ZOOM_FACTOR, p1[1] + ZOOM_FACTOR];
+		// 		drawer
+		// 			.add_rect(p1, p2, ImColor32::from_rgb(unit, unit, unit))
+		// 			.filled(true)
+		// 			.build();
+		// 	}
+		// });
 	}
 }

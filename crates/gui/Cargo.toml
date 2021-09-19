@@ -7,7 +7,6 @@ edition = "2018"
 
 [dependencies]
 imgui = { git = "https://github.com/imgui-rs/imgui-rs.git" }
-imgui-opengl-renderer = "0.11.0"
-imgui-sdl2 = "0.14.0"
-sdl2 = { version="0.34.5", features = ["unsafe_textures"] }
-gl = "0.14.0"
+imgui-glium-renderer = { git = "https://github.com/imgui-rs/imgui-rs.git" }
+imgui-winit-support = { git = "https://github.com/imgui-rs/imgui-rs.git" }
+glium = "0.30.2"
