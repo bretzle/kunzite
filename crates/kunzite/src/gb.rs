@@ -20,8 +20,8 @@ impl Gb {
 	}
 
 	/// Insert a rom into the gameboy
-	pub fn insert_rom<P: AsRef<Path> + Clone>(&mut self, path: P) -> Result<()> {
-		self.cpu.memory.cartridge.insert_rom(path)
+	pub fn insert_rom<P: AsRef<Path> + Clone>(&mut self, bootloader: P, path: P) -> Result<()> {
+		self.cpu.memory.cartridge.insert_rom(bootloader, path)
 	}
 
 	pub fn boot(&mut self) {
@@ -36,15 +36,5 @@ impl Gb {
 	/// fully execute the next instruction
 	pub fn step(&mut self) -> u8 {
 		self.cpu.step()
-	}
-
-	pub fn redraw(&mut self) -> bool {
-		let redraw = self.cpu.memory.ppu.redraw;
-
-		if redraw {
-			self.cpu.memory.ppu.redraw = !self.cpu.memory.ppu.redraw;
-		}
-
-		redraw
 	}
 }

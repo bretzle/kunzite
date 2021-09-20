@@ -20,7 +20,6 @@ pub struct Cpu {
 	/// Cpu registers
 	pub registers: Registers,
 
-	pub last_mem_addr: usize,
 	pub memory: Memory,
 
 	pub tick: u8, // T-cycle
@@ -95,7 +94,7 @@ impl Cpu {
 		self.ime = false;
 		self.halted = false;
 
-		let isr: u16 = match id {
+		let isr = match id {
 			0 => 0x40,
 			1 => 0x48,
 			2 => 0x50,
@@ -127,8 +126,6 @@ impl Cpu {
 				let hl = self.registers[Register16::HL];
 				let val = self.read(Register8::A);
 				self.memory.write(hl, val);
-
-				self.last_mem_addr = hl as usize;
 
 				let hl = &mut self.registers[Register16::HL];
 				if inc {
@@ -321,7 +318,6 @@ impl Cpu {
 				let addr = 0xFF00 + offset as u16;
 				let val = self.read(Register8::A);
 				self.memory.write(addr, val);
-				self.last_mem_addr = addr as usize;
 			}
 			Instruction::LoadHA(offset) => {
 				self.write(Register8::A, self.memory.read(0xFF00 + offset as u16));
@@ -330,7 +326,6 @@ impl Cpu {
 				let addr = 0xFF00 + self.read(Register8::C) as u16;
 				let val = self.read(Register8::A);
 				self.memory.write(addr, val);
-				self.last_mem_addr = addr as usize;
 			}
 			Instruction::LoadCA => todo!("{:?}", instruction),
 			Instruction::StoreAAtAddress(addr) => {

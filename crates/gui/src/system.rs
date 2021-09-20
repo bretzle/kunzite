@@ -81,7 +81,7 @@ pub fn init(options: &Options) -> System {
 
 	let mut imgui = Context::create();
 	imgui.style_mut().window_rounding = 5.0;
-	imgui.set_ini_filename(None);
+	// imgui.set_ini_filename(None);
 
 	let mut platform = WinitPlatform::init(&mut imgui);
 	{

@@ -10,6 +10,7 @@ pub mod emulator;
 pub mod gb;
 pub mod memory;
 pub mod ppu;
+pub mod audio;
 mod util;
 
 use color_eyre::Result;
