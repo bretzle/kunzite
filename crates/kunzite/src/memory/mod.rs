@@ -3,7 +3,7 @@
 mod cartridge;
 
 use self::cartridge::Cartridge;
-use crate::ppu::PPU;
+use crate::{audio::Audio, ppu::PPU};
 
 /// Memory
 pub struct Memory {
@@ -12,6 +12,7 @@ pub struct Memory {
 	hram: [u8; 0x7F],
 	_serial_io: [u8; 0x4C],
 	pub ppu: PPU,
+	pub audio: Audio,
 	/// Interrupt flag
 	pub int_flag: u8,
 	/// Interrupt enable
@@ -36,6 +37,7 @@ impl Memory {
 			int_flag: 0,
 			int_enable: 0,
 			ppu: PPU::new(),
+			audio: Audio::new(),
 			hram: [0; 0x7F],
 		}
 	}
@@ -65,9 +67,9 @@ impl Memory {
 			0xFE00..0xFEA0 => self.ppu.read(addr),       // sprite attrib memory
 			0xFEA0..0xFF0F => 0,                         // prohibited
 			0xFF0F => self.int_flag,                     // Interrupt flag
-			0xFF10..0xFF40 => 0,                         // ???
+			0xFF10..0xFF40 => self.audio.read(addr),     // Audio
 			0xFF40..0xFF4C => self.ppu.read(addr),       // PPU (actually io but only need ppu atm)
-			0xFF4C..0xFF80 => 0,                         // ???
+			0xFF4C..0xFF80 => 0,                         // ??? unused
 			0xFF80..0xFFFF => self.hram[addr & 0x7f],    // HRAM
 			0xFFFF => self.int_enable,                   // Interrupt enable
 			_ => return None,
@@ -91,19 +93,20 @@ impl Memory {
 			0xFE00..0xFEA0 => self.ppu.write(addr, val),       // sprite attrib memory
 			0xFEA0..0xFF0F => (),                              // prohibited
 			0xFF0F => self.int_flag = val,                     // Interrupt flag
-			0xFF10..0xFF40 => (),                              // ???
+			0xFF10..0xFF40 => self.audio.write(addr, val),     // Audio
 			0xFF46 => self.dma(val),                           // DMA
 			0xFF40..0xFF4C => self.ppu.write(addr, val),       // PPU
 			0xFF4C..0xFF80 => (),                              // ???
 			0xFF80..0xFFFF => self.hram[addr & 0x7f] = val,    // HRAM
 			0xFFFF => self.int_enable = val,                   // Interrupt enable
-			_ => (),
+			_ => unreachable!("Unexpected address: 0x{:04x}", addr),
 		};
 	}
 
 	pub fn update(&mut self, tick: u8) {
 		// self.cartridge.update(tick); does nothing
 		self.ppu.update(tick);
+		self.audio.update(tick);
 
 		if self.ppu.irq_vblank {
 			self.int_flag |= 0x1;
