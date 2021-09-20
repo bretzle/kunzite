@@ -2,7 +2,7 @@
 
 use color_eyre::Report;
 use gui::prelude::*;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crate::{
 	cpu::instruction::{Flag, Register16, Register8},
@@ -18,6 +18,15 @@ pub struct Emulator {
 	ticks: u32,
 }
 
+enum Step {
+	InstCount(usize),
+	Frame,
+}
+
+impl Step {
+	const FRAME_CYCLES: u32 = 456 * (144 + 10);
+}
+
 impl Emulator {
 	fn update_screen(&mut self) {
 		let fb = self.gb.cpu.memory.ppu.frame_buffer();
@@ -25,6 +34,27 @@ impl Emulator {
 			let v = fb[x + (y * 160)];
 			[v, v, v]
 		});
+	}
+
+	fn step(&mut self, step: Step) {
+		match step {
+			Step::InstCount(count) => {
+				for _ in 0..count {
+					self.ticks += self.gb.step() as u32;
+					if self.ticks >= Step::FRAME_CYCLES {
+						self.update_screen();
+						self.ticks = 0;
+					}
+				}
+			}
+			Step::Frame => {
+				while self.ticks <= Step::FRAME_CYCLES {
+					self.ticks += self.gb.step() as u32;
+				}
+				self.update_screen();
+				self.ticks = 0;
+			}
+		}
 	}
 }
 
@@ -58,9 +88,8 @@ impl Application for Emulator {
 				repeat: false,
 				..
 			} => match key {
-				VirtualKeyCode::Space => {
-					self.gb.step();
-				}
+				VirtualKeyCode::Space => self.step(Step::InstCount(1)),
+				VirtualKeyCode::F => self.step(Step::Frame),
 				VirtualKeyCode::Return => self.run = !self.run,
 				_ => {}
 			},
@@ -72,29 +101,7 @@ impl Application for Emulator {
 
 	fn update(&mut self, _frame_time: &Duration, _running: &mut bool) -> Result<(), Self::Error> {
 		if self.run {
-			// self.step(100);
-			// let now = Instant::now();
-			// let mut elapsed_tick: u32 = 0;
-
-			// Emulate one frame
-			// while elapsed_tick < 456 * (144 + 10) {
-			// elapsed_tick += self.gb.step() as u32;
-			// }
-
-			for _ in 0..100 {
-				self.ticks += self.gb.step() as u32;
-				if self.ticks >= 456 * (144 + 10) {
-					self.update_screen();
-					self.ticks = 0;
-				}
-			}
-
-			// let wait = Duration::from_micros(1000000 / 60);
-			// let elapsed = now.elapsed();
-
-			// if wait > elapsed {
-			// 	std::thread::sleep(wait - elapsed);
-			// }
+			self.step(Step::InstCount(100));
 		}
 
 		Ok(())
@@ -220,48 +227,14 @@ impl Application for Emulator {
 
 		const SCREEN_WIDTH: f32 = 160.0;
 		const SCREEN_HEIGHT: f32 = 144.0;
-		const ZOOM_FACTOR: f32 = 2.0;
+		const ZOOM_FACTOR: f32 = 1.0;
 
-		Window::new("Display").build(ui, || {
-			// let drawer = ui.get_window_draw_list();
-
-			// let tl = ui.cursor_screen_pos();
-			// let br = [
-			// 	tl[0] + SCREEN_WIDTH * ZOOM_FACTOR,
-			// 	tl[1] + SCREEN_HEIGHT * ZOOM_FACTOR,
-			// ];
-
-			// if self.gb.redraw() {
-			// 	self.screen.update(self.gb.cpu.memory.ppu.frame_buffer());
-			// }
-
+		Window::new("Display").resizable(false).build(ui, || {
 			Image::new(self.screen_texture.texture_id, [
 				SCREEN_WIDTH * ZOOM_FACTOR,
 				SCREEN_HEIGHT * ZOOM_FACTOR,
 			])
 			.build(ui);
-
-			// drawer
-			// 	.add_rect(
-			// 		[tl[0] - 1.0, tl[1] - 1.0],
-			// 		[br[0] + 1.0, br[1] + 1.0],
-			// 		ImColor32::WHITE,
-			// 	)
-			// 	.build();
-
-			// for (i, &unit) in self.gb.cpu.memory.ppu.frame_buffer().iter().enumerate() {
-			// 	let i = i as u32;
-
-			// 	let p1 = [
-			// 		(i % WIDTH) as f32 * ZOOM_FACTOR + tl[0],
-			// 		(i / WIDTH) as f32 * ZOOM_FACTOR + tl[1],
-			// 	];
-			// 	let p2 = [p1[0] + ZOOM_FACTOR, p1[1] + ZOOM_FACTOR];
-			// 	drawer
-			// 		.add_rect(p1, p2, ImColor32::from_rgb(unit, unit, unit))
-			// 		.filled(true)
-			// 		.build();
-			// }
 		});
 	}
 }

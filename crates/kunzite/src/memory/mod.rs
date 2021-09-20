@@ -40,6 +40,20 @@ impl Memory {
 		}
 	}
 
+	fn dma(&mut self, val: u8) {
+		if dbg!(val) < 0x80 || 0xDF < val {
+			panic!("Invalid DMA source address")
+		}
+
+		let src_base = (val as u16) << 8;
+		let dst_base = 0xFE00;
+
+		for i in 0..0xA0 {
+			let tmp = self.read(src_base | i);
+			self.write(dst_base | i, tmp);
+		}
+	}
+
 	pub fn get(&self, addr: u16) -> Option<u8> {
 		let addr = addr as usize;
 		let val = match addr {
@@ -78,6 +92,7 @@ impl Memory {
 			0xFEA0..0xFF0F => (),                              // prohibited
 			0xFF0F => self.int_flag = val,                     // Interrupt flag
 			0xFF10..0xFF40 => (),                              // ???
+			0xFF46 => self.dma(val),                           // DMA
 			0xFF40..0xFF4C => self.ppu.write(addr, val),       // PPU
 			0xFF4C..0xFF80 => (),                              // ???
 			0xFF80..0xFFFF => self.hram[addr & 0x7f] = val,    // HRAM

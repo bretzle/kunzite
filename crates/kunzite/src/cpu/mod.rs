@@ -270,7 +270,21 @@ impl Cpu {
 				}
 			}
 			Instruction::StoreImm16AddrSp(_) => todo!("{:?}", instruction),
-			Instruction::AddHl(_) => todo!("{:?}", instruction),
+			Instruction::AddHl(reg) => {
+				let hl = self.registers[Register16::HL];
+				let val = self.registers[reg];
+
+				let half_carry = (hl & 0xFFF) + (val & 0xFFF) > 0xFFF;
+				let (res, carry) = hl.overflowing_add(val);
+				self.registers[Register16::HL] = res;
+
+				update_flags! {
+					self,
+					n: false,
+					h: half_carry,
+					c: carry,
+				}
+			}
 			Instruction::Ret(f) => match f {
 				Some(flag) => {
 					if self.registers.flag(flag) {
@@ -332,7 +346,23 @@ impl Cpu {
 			Instruction::Rl(reg) => self._rl(reg),
 			Instruction::Sla(_) => todo!("{:?}", instruction),
 			Instruction::Sra(_) => todo!("{:?}", instruction),
-			Instruction::Swap(_) => todo!("{:?}", instruction),
+			Instruction::Swap(reg) => {
+				let orig = self.read(reg);
+
+				let upper = orig & 0xF0;
+				let lower = orig & 0x0F;
+				let val = (lower << 4) | (upper >> 4);
+
+				self.write(reg, val);
+
+				update_flags! {
+					self,
+					z: val == 0,
+					n: 0,
+					h: 0,
+					c: 0,
+				}
+			}
 			Instruction::Srl(reg) => self.srl(reg),
 			Instruction::Bit(bit, reg) => {
 				let set = self.read(reg) & (1 << bit) != 0;
@@ -359,7 +389,7 @@ impl Cpu {
 	fn push(&mut self, val: u8) {
 		let sp = &mut self.registers[Register16::SP];
 
-		*sp -= 1;
+		*sp = sp.wrapping_sub(1);
 
 		self.memory.write(*sp, val);
 	}
@@ -369,7 +399,7 @@ impl Cpu {
 
 		let val = self.memory.read(*sp);
 
-		*sp += 1;
+		*sp = sp.wrapping_add(1);
 
 		val
 	}
