@@ -26,9 +26,9 @@ impl Application for Emulator {
 
 		let screen_texture = system.create_texture(160, 144);
 
-		// gb.boot();
+		gb.boot();
 
-		gb.insert_rom("roms/bootloader.gb", "roms/dmg-acid2.gb")
+		gb.insert_rom("roms/dmg-acid2.gb")
 			.expect("Failed to load ROM.");
 
 		Self {

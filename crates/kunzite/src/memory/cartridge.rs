@@ -49,13 +49,13 @@ impl Cartridge {
 	}
 
 	/// Insert a cartridge into the cpu
-	pub fn insert_rom<P: AsRef<Path>>(&mut self, bootloader: P, path: P) -> Result<()> {
+	pub fn insert_rom<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
 		let mut file = File::open(path)?;
 
 		let _ = file.read_to_end(&mut self.rom)?;
 
-		let mut file = File::open(bootloader)?;
-		file.read(&mut self.rom[0..0x100])?;
+		// let mut file = File::open(bootloader)?;
+		// file.read(&mut self.rom[0..0x100])?;
 
 		// println!("Rom size: {} bytes", size);
 

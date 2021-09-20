@@ -43,16 +43,15 @@ impl Memory {
 	}
 
 	fn dma(&mut self, val: u8) {
-		if dbg!(val) < 0x80 || 0xDF < val {
-			panic!("Invalid DMA source address")
-		}
-
 		let src_base = (val as u16) << 8;
 		let dst_base = 0xFE00;
 
-		for i in 0..0xA0 {
-			let tmp = self.read(src_base | i);
-			self.write(dst_base | i, tmp);
+		if src_base >= 0x8000 && src_base < 0xE000 {
+			println!("DMA addr: 0x{:04X}", src_base);
+			for i in 0..0xA0 {
+				let tmp = self.read(src_base + i);
+				self.write(dst_base + i, tmp);
+			}
 		}
 	}
 

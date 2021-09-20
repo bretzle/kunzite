@@ -69,7 +69,7 @@ impl Audio {
 			0xFF12 => self.chan1_volume = val,
 			0xFF13 => self.chan1_freq_lo = val,
 			0xFF14 => self.chan1_freq_hi = val,
-			0xFF15 => panic!(), // TODO: what is this???
+			0xFF15 => (), // TODO: what is this???
 			0xFF16 => self.chan2_wave_duty = val,
 			0xFF17 => self.chan2_volume = val,
 			0xFF18 => self.chan2_freq_lo = val,
@@ -79,7 +79,7 @@ impl Audio {
 			0xFF1C => self.chan3_select_output = val,
 			0xFF1D => self.chan3_freq_lo = val,
 			0xFF1E => self.chan3_freq_hi = val,
-			0xFF1F => panic!(), // what is this???
+			0xFF1F => (), // what is this???
 			0xFF20 => self.chan4_sound_length = val,
 			0xFF21 => self.chan4_volume = val,
 			0xFF22 => self.chan4_poly_counter = val,
@@ -87,7 +87,7 @@ impl Audio {
 			0xFF24 => self.channel_control = val,
 			0xFF25 => self.output_select = val,
 			0xFF26 => self.enable = val,
-			0xFF27..0xFF30 => panic!(), // what is this???
+			0xFF27..0xFF30 => (), // what is this???
 			0xFF30..0xFF40 => self.chan3_wave_ram[addr & 0xF] = val,
 			_ => unreachable!("Unexpected address: 0x{:04x}", addr),
 		}
