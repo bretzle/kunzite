@@ -51,6 +51,8 @@ impl Emulator {
 			));
 			ui.text(format!("Carry: {}", self.gb.cpu.registers.flag(Flag::C)));
 			ui.text(format!("Ticks: {}", self.gb.cpu.tick));
+			ui.text(format!("Running: {}", self.run));
+			ui.text(format!("Halted: {}", self.gb.cpu.halted));
 		});
 	}
 

@@ -54,7 +54,7 @@ impl Cartridge {
 
 		let _ = file.read_to_end(&mut self.rom)?;
 
-		// let mut file = File::open(bootloader)?;
+		// let mut file = File::open("roms/bootloader.gb")?;
 		// file.read(&mut self.rom[0..0x100])?;
 
 		// println!("Rom size: {} bytes", size);

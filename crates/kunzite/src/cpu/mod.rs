@@ -23,7 +23,7 @@ pub struct Cpu {
 	pub memory: Memory,
 
 	pub tick: u8, // T-cycle
-	halted: bool,
+	pub halted: bool,
 	ime: bool,
 }
 
@@ -43,8 +43,34 @@ macro_rules! update_flags {
 }
 
 impl Cpu {
+	fn trace(&self) {
+		let a = self.read(Register8::A);
+		let f = self.registers.flags();
+		let b = self.read(Register8::B);
+		let c = self.read(Register8::C);
+		let d = self.read(Register8::D);
+		let e = self.read(Register8::E);
+		let h = self.read(Register8::H);
+		let l = self.read(Register8::L);
+
+		let sp = self.registers[Register16::SP];
+		let pc = self.pc;
+
+		let m0 = self.memory.read(pc + 0);
+		let m1 = self.memory.read(pc + 1);
+		let m2 = self.memory.read(pc + 2);
+		let m3 = self.memory.read(pc + 3);
+
+		println!(
+			"A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: \
+			 {:04X} PC: 00:{:04X} ({:02X} {:02X} {:02X} {:02X})",
+			a, f, b, c, d, e, h, l, sp, pc, m0, m1, m2, m3
+		)
+	}
+
 	/// Execute an instruction and increment pc
 	pub fn step(&mut self) -> u8 {
+		// self.trace();
 		let mut total_tick = 0;
 
 		self.tick = 0;
@@ -54,6 +80,8 @@ impl Cpu {
 		} else if let Some(inst) = self.parse_instruction() {
 			self.pc += inst.size();
 			self.execute(inst);
+		} else {
+			panic!()
 		}
 
 		total_tick += self.tick;
@@ -113,11 +141,7 @@ impl Cpu {
 		match instruction {
 			Instruction::Nop => {} // TODO: does this do anything?
 			Instruction::Stop => todo!("{:?}", instruction),
-			Instruction::Halt => {
-				if self.ime {
-					self.halted = true;
-				}
-			}
+			Instruction::Halt => self.halted = true,
 			Instruction::StoreImm16(reg, val) => {
 				self.registers[reg] = val;
 			}
@@ -129,9 +153,9 @@ impl Cpu {
 
 				let hl = &mut self.registers[Register16::HL];
 				if inc {
-					*hl += 1;
+					*hl = hl.wrapping_add(1);
 				} else {
-					*hl -= 1;
+					*hl = hl.wrapping_sub(1);
 				}
 			}
 			Instruction::LoadAFromHlAddr(inc) => {
@@ -158,10 +182,10 @@ impl Cpu {
 			Instruction::Jr(f, r) => match f {
 				Some(flag) => {
 					if self.registers.flag(flag) {
-						self._jr((self.pc as i16 + r as i16) as u16);
+						self._jr(r);
 					}
 				}
-				None => self._jr(((self.pc - instruction.size()) as i16 + r as i16 - 1) as u16),
+				None => self._jr(r -2 ),
 			},
 			Instruction::Jp(f, addr) => match f {
 				Some(flag) => {
@@ -530,9 +554,9 @@ impl Cpu {
 		self.tick += 12;
 	}
 
-	fn _jr(&mut self, addr: u16) {
+	fn _jr(&mut self, offset: i8) {
 		self.tick += 4;
-		self.pc = addr;
+		self.pc = self.pc.wrapping_add(offset as u16);
 	}
 
 	fn _jp(&mut self, addr: u16) {
