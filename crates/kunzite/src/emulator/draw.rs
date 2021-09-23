@@ -1,8 +1,5 @@
 use super::Emulator;
-use crate::{
-	cpu::instruction::{Flag, Register16, Register8},
-	memory::Memory,
-};
+use crate::cpu::instruction::{Flag, Register16, Register8};
 use gui::prelude::*;
 
 const SCREEN_WIDTH: f32 = 160.0;
@@ -65,7 +62,7 @@ impl Emulator {
 			let memory = &self.gb.cpu.memory;
 
 			ChildWindow::new("memory").build(ui, || {
-				const TOTAL_ADDRESSES: usize = Memory::LENGTH;
+				const TOTAL_ADDRESSES: usize = 0x10000;
 				const LINES_TO_DRAW: usize = TOTAL_ADDRESSES / 16;
 				const LAST_LINE_ADDRESS: u16 = ((LINES_TO_DRAW - 1) * 16) as u16;
 				let mut last_line_items = TOTAL_ADDRESSES as u16 % 16;
@@ -100,7 +97,7 @@ impl Emulator {
 						// display address content (hex)
 						for base in 0..item_count {
 							ui.same_line();
-							ui.text(format!("{:>02X}", memory.read(address + base)))
+							ui.text(format!("{:>02X}", memory.read_byte(address + base)))
 						}
 
 						for _ in item_count..max_items {
@@ -113,7 +110,7 @@ impl Emulator {
 						let mut text = "| ".to_string();
 
 						for base in 0..item_count {
-							let byte = memory.read(address + base) as char;
+							let byte = memory.read_byte(address + base) as char;
 							let c = if byte.is_ascii_control() || byte.is_ascii_whitespace() {
 								' '
 							} else {

@@ -5,7 +5,7 @@ mod function;
 
 use self::function::Step;
 use crate::gb::Gb;
-use color_eyre::Report;
+use color_eyre::{owo_colors::OwoColorize, Report};
 use gui::prelude::*;
 use std::time::Duration;
 
@@ -22,14 +22,9 @@ impl Application for Emulator {
 	type Error = Report;
 
 	fn setup(system: &mut System) -> Self {
-		let mut gb = Gb::create();
+		let mut gb = Gb::insert_rom("roms/dmg-acid2.gb").unwrap();
 
 		let screen_texture = system.create_texture(160, 144);
-
-		gb.boot();
-
-		gb.insert_rom("roms/dmg-acid2.gb")
-			.expect("Failed to load ROM.");
 
 		Self {
 			gb,

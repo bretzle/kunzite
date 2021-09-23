@@ -9,11 +9,11 @@ pub enum Step {
 
 impl Emulator {
 	pub fn update_screen(&mut self) {
-		let fb = self.gb.cpu.memory.ppu.frame_buffer();
-		self.screen_texture.refresh(|x, y| {
-			let v = fb[x + (y * 160)];
-			[v, v, v]
-		});
+		// let fb = self.gb.cpu.memory.ppu.frame_buffer();
+		// self.screen_texture.refresh(|x, y| {
+		// 	let v = fb[x + (y * 160)];
+		// 	[v, v, v]
+		// });
 	}
 
 	pub fn step(&mut self, step: Step) {
