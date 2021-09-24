@@ -1,11 +1,77 @@
+use crate::{cpu::instruction::Instruction, memory::Memory};
+
 use super::{
-	instruction::{Flag, Instruction, Register16, Register8},
+	instruction::{Flag, Register16, Register8},
 	Cpu,
 };
-use std::fmt::Debug;
 
+const INSTRUCTION_TIMINGS: [i32; 256] = [
+	4, 12, 8, 8, 4, 4, 8, 4, 20, 8, 8, 8, 4, 4, 8, 4, 4, 12, 8, 8, 4, 4, 8, 4, 12, 8, 8, 8, 4, 4,
+	8, 4, 8, 12, 8, 8, 4, 4, 8, 4, 8, 8, 8, 8, 4, 4, 8, 4, 8, 12, 8, 8, 12, 12, 12, 4, 8, 8, 8, 8,
+	4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4,
+	4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4, 8, 8, 8, 8, 8, 8, 4, 8, 4, 4, 4, 4,
+	4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4,
+	4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4,
+	4, 4, 8, 4, 8, 12, 12, 16, 12, 16, 8, 16, 8, 16, 12, 4, 12, 24, 8, 16, 8, 12, 12, 0, 12, 16, 8,
+	16, 8, 16, 12, 0, 12, 0, 8, 16, 12, 12, 8, 0, 0, 16, 8, 16, 16, 4, 16, 0, 0, 0, 8, 16, 12, 12,
+	8, 4, 0, 16, 8, 16, 12, 8, 16, 4, 0, 0, 8, 16,
+];
+
+const CB_INSTRUCTION_TIMINGS: [i32; 256] = [
+	8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8,
+	16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8,
+	8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 12, 8, 8, 8, 8, 8, 8, 8, 12, 8, 8, 8, 8, 8, 8, 8, 12, 8, 8, 8,
+	8, 8, 8, 8, 12, 8, 8, 8, 8, 8, 8, 8, 12, 8, 8, 8, 8, 8, 8, 8, 12, 8, 8, 8, 8, 8, 8, 8, 12, 8,
+	8, 8, 8, 8, 8, 8, 12, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8,
+	16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8,
+	8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8,
+	8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8,
+	8, 8, 8, 8, 8, 8, 16, 8, 8, 8, 8, 8, 8, 8, 16, 8,
+];
+
+impl Cpu {
+	pub(super) fn fetch(&mut self, memory: &mut Memory) -> u8 {
+		let opcode = self.get_n(memory);
+		self.instruction_cycle += INSTRUCTION_TIMINGS[opcode as usize];
+		opcode
+	}
+
+	fn get_n(&mut self, memory: &Memory) -> u8 {
+		let byte = memory.read_byte(self.registers.pc);
+		self.registers.pc += 1;
+
+		byte
+	}
+
+	fn get_d(&mut self, memory: &Memory) -> i8 {
+		self.get_n(memory) as i8
+	}
+
+	fn get_nn(&mut self, memory: &Memory) -> u16 {
+		let word = memory.read_word(self.registers.pc);
+		self.registers.pc += 2;
+
+		word
+	}
+
+	pub fn decode(&self, pc: u16, memory: &Memory) -> String {
+		let mut pc = pc;
+		let mut opcode = memory.read_byte(pc);
+
+		let inst = if opcode == 0xCB {
+			pc += 1;
+			opcode = memory.read_byte(pc);
+			self.parse_normal_inst(DecodeInfo::new(memory, opcode, pc))
+		} else {
+			self.parse_cb_inst(DecodeInfo::new(memory, opcode, pc))
+		};
+
+		format!("{:?}", inst)
+	}
+}
+
+#[derive(Debug)]
 struct DecodeInfo {
-	pc: u16,
 	x: u8,
 	y: u8,
 	z: u8,
@@ -14,51 +80,20 @@ struct DecodeInfo {
 	d: i8,
 	n: u8,
 	nn: u16,
-	prefix: Option<u8>,
 }
 
 impl DecodeInfo {
-	#[allow(clippy::many_single_char_names)]
-	pub fn new(cpu: &Cpu, opcode: u8, prefix: Option<u8>) -> Self {
-		let rom = &cpu.memory;
-		let x = (opcode >> 6) & 0x3;
-		let y = (opcode >> 3) & 0x7;
-		let z = opcode & 0x7;
-		let p = y >> 1;
-		let q = y % 2;
-
-		let d = rom.read(cpu.pc + 1) as i8;
-		let n = rom.read(cpu.pc + 1);
-		let nn = if cpu.pc as usize + 2 < 0x10000 {
-			((rom.read(cpu.pc + 2) as u16) << 8) | n as u16
-		} else {
-			0
-		};
-
+	pub fn new(memory: &Memory, opcode: u8, pc: u16) -> Self {
 		Self {
-			pc: cpu.pc,
-			x,
-			y,
-			z,
-			p,
-			q,
-			d,
-			n,
-			nn,
-			prefix,
+			x: (opcode >> 6) & 0x3,
+			y: (opcode >> 3) & 0x7,
+			z: opcode & 0x7,
+			p: ((opcode >> 3) & 0x7) >> 1,
+			q: ((opcode >> 3) & 0x7) % 2,
+			d: memory.read_byte(pc + 1) as i8,
+			n: memory.read_byte(pc + 1),
+			nn: memory.read_word(pc + 1),
 		}
-	}
-
-	fn opcode(&self) -> u8 {
-		(self.x << 6) | (self.y << 3) | self.z
-	}
-}
-
-impl Debug for DecodeInfo {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "pc     = {:04X}\nopcode = {:#04X}\nx      = {:4}\ny      = {:4}\nz      = \
-			{:4}\np      = {:4}\nq      = {:4}\nd      = {:4}\nn      = {:04X}\nnn     = \
-			{:04X}\nprefix = {:?}\n-------------", self.pc, self.opcode(), self.x, self.y, self.z, self.p, self.q, self.d, self.n, self.nn,self.prefix)
 	}
 }
 
@@ -87,49 +122,6 @@ const R: [Register8; 8] = [
 ];
 
 impl Cpu {
-	/// Decodes a slice of a rom
-	/// effectively dissasembles a program
-	///
-	/// Will panic if an invalid opcode is read
-	///
-	/// TODO: have parsing return an option to avoid panics
-	pub fn try_decode_all(data: &[u8]) -> Vec<(u16, Instruction)> {
-		let mut instructions = vec![];
-		let mut this = Self::default();
-
-		let _ = this.memory.cartridge.rom = data.to_vec();
-
-		while let Some(inst) = this.parse_instruction() {
-			let pc = this.pc;
-			this.pc += inst.size();
-			instructions.push((pc, inst));
-		}
-
-		instructions
-	}
-
-	pub(crate) fn parse_instruction(&self) -> Option<Instruction> {
-		let rom = &self.memory;
-
-		if let Some(opcode) = rom.get(self.pc) {
-			let info = DecodeInfo::new(self, opcode, None);
-
-			#[cfg(feature = "debug_opcode")]
-			println!("{:?}", info);
-
-			let inst = match opcode {
-				0xCB => {
-					self.parse_cb_inst(DecodeInfo::new(self, rom.read(self.pc + 1), Some(0xCB)))
-				}
-				_ => self.parse_normal_inst(info),
-			};
-
-			Some(inst)
-		} else {
-			None
-		}
-	}
-
 	fn parse_normal_inst(&self, info: DecodeInfo) -> Instruction {
 		let DecodeInfo {
 			x,
@@ -310,45 +302,3 @@ impl Cpu {
 		}
 	}
 }
-
-// #[cfg(test)]
-// mod tests {
-// 	use super::*;
-
-// 	fn compare(instructions: Vec<Instruction>, asm: &str) {
-// 		asm.lines()
-// 			.filter(|line| {
-// 				let line = line.trim();
-// 				!line.starts_with(';') && line.len() > 1
-// 			})
-// 			.map(|s| s.split(';').next().unwrap())
-// 			.enumerate()
-// 			.for_each(|(idx, line)| {
-// 				let calc = format!("{:?}", instructions[idx])
-// 					.to_lowercase()
-// 					.replace(' ', "");
-// 				let real = line.trim().to_lowercase().replace(' ', "");
-
-// 				assert_eq!(calc.trim(), real)
-// 			});
-// 	}
-
-// 	#[test]
-// 	fn test_decode_bootloader() {
-// 		const BOOTLOADER: &[u8; 256] = include_bytes!("../../../../roms/bootloader.gb");
-// 		const BOOTLOADER_ASM: &str = include_str!("../../../../roms/disassembly/bootloader.asm");
-
-// 		let mut rom = BOOTLOADER.to_vec();
-// 		rom.iter_mut()
-// 			.enumerate()
-// 			.filter(|(idx, _)| (0xA8..0xE0).contains(idx))
-// 			.for_each(|(_, val)| *val = 0);
-
-// 		let instructions = Cpu::try_decode_all(&rom)
-// 			.into_iter()
-// 			.map(|(_, inst)| inst)
-// 			.collect();
-
-// 		compare(instructions, BOOTLOADER_ASM);
-// 	}
-// }

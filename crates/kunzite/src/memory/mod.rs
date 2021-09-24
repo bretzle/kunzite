@@ -57,7 +57,7 @@ pub struct Memory {
 	pub irq48_signal: u8,
 	pub screen_disabled: bool,
 	pub lcd_status_mode: u8,
-	pub gpu_cycles: GpuCycles,
+	gpu_cycles: GpuCycles,
 	pub div_cycles: i32,
 	pub tima_cycles: i32,
 	is_cgb: bool,
@@ -116,14 +116,14 @@ impl Memory {
 
 		// setup initial values for the sound module
 		let mut audio = Audio::new();
-		for i in 0xFF10..=0xFF3F {
-			let value = if is_cgb {
-				INITIAL_VALUES_FOR_COLOR_FFXX[i - 0xFF00]
-			} else {
-				INITIAL_VALUES_FOR_FFXX[i - 0xFF00]
-			};
-			audio.write_byte(i as u16, value);
-		}
+		// for i in 0xFF10..=0xFF3F {
+		// 	let value = if is_cgb {
+		// 		INITIAL_VALUES_FOR_COLOR_FFXX[i - 0xFF00]
+		// 	} else {
+		// 		INITIAL_VALUES_FOR_FFXX[i - 0xFF00]
+		// 	};
+		// 	audio.write_byte(i as u16, value);
+		// }
 
 		Self {
 			mbc,
@@ -166,6 +166,19 @@ impl Memory {
 			0xA000..=0xBFFF => self.mbc.write_byte(index, val),
 			_ => panic!("{:04X}", index),
 		}
+	}
+
+	pub fn read_word(&self, index: u16) -> u16 {
+		let low = self.read_byte(index) as u16;
+		let high = self.read_byte(index + 1) as u16;
+		(high << 8) + low
+	}
+
+	pub fn write_word(&mut self, index: u16, value: u16) {
+		let high = (value >> 8) as u8;
+		let low = value as u8;
+		self.write_byte(index, low);
+		self.write_byte(index + 1, high);
 	}
 }
 

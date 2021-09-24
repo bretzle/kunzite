@@ -1,5 +1,5 @@
 use super::Emulator;
-use crate::cpu::instruction::{Flag, Register16, Register8};
+use crate::cpu::Flag;
 use gui::prelude::*;
 
 const SCREEN_WIDTH: f32 = 160.0;
@@ -9,47 +9,43 @@ const ZOOM_FACTOR: f32 = 2.0;
 impl Emulator {
 	pub fn render_cpu_state(&self, ui: &Ui) {
 		Window::new("CPU State").build(ui, || {
-			let a = self.gb.cpu.read(Register8::A);
-			let f = self.gb.cpu.registers.flags();
-			let af = self.gb.cpu.registers[Register16::AF];
+			let regs = self.gb.cpu.regs();
 
-			let b = self.gb.cpu.read(Register8::B);
-			let c = self.gb.cpu.read(Register8::C);
-			let bc = self.gb.cpu.registers[Register16::BC];
+			let a = regs.a;
+			let f = regs.f;
+			let af = regs.get_af();
 
-			let d = self.gb.cpu.read(Register8::D);
-			let e = self.gb.cpu.read(Register8::E);
-			let de = self.gb.cpu.registers[Register16::DE];
+			let b = regs.b;
+			let c = regs.c;
+			let bc = regs.get_bc();
 
-			let h = self.gb.cpu.read(Register8::H);
-			let l = self.gb.cpu.read(Register8::L);
-			let hl = self.gb.cpu.registers[Register16::HL];
+			let d = regs.d;
+			let e = regs.e;
+			let de = regs.get_de();
 
-			let i_text = match self.gb.cpu.parse_instruction() {
-				Some(i) => {
-					format!("PC: {:04X}  [{:?}]", self.gb.cpu.pc, i)
-				}
-				None => format!("PC: {:04X}  [END]", self.gb.cpu.pc),
-			};
+			let h = regs.h;
+			let l = regs.l;
+			let hl = regs.get_hl();
 
-			ui.text(i_text);
+			let pc = regs.pc;
+
+			let i = self.gb.cpu.decode(pc, self.gb.memory());
+
+			ui.text(format!("PC: {:04X}  [{}]", pc, i));
 			ui.text(format!("AF: {:02X}|{:02X} [{:04X}]", a, f, af));
 			ui.text(format!("BC: {:02X}|{:02X} [{:04X}]", b, c, bc));
 			ui.text(format!("DE: {:02X}|{:02X} [{:04X}]", d, e, de));
 			ui.text(format!("HL: {:02X}|{:02X} [{:04X}]", h, l, hl));
-			ui.text(format!("SP: {:04X}", self.gb.cpu.registers[Register16::SP]));
+			ui.text(format!("SP: {:04X}", regs.sp));
 
 			ui.text("Flags:");
-			ui.text(format!("Zero: {}", self.gb.cpu.registers.flag(Flag::Z)));
-			ui.text(format!("Subtract: {}", self.gb.cpu.registers.flag(Flag::N)));
-			ui.text(format!(
-				"Half-carry: {}",
-				self.gb.cpu.registers.flag(Flag::H)
-			));
-			ui.text(format!("Carry: {}", self.gb.cpu.registers.flag(Flag::C)));
-			ui.text(format!("Ticks: {}", self.gb.cpu.tick));
-			ui.text(format!("Running: {}", self.run));
-			ui.text(format!("Halted: {}", self.gb.cpu.halted));
+			ui.text(format!("Zero: {}", f.contains(Flag::ZERO)));
+			ui.text(format!("Subtract: {}", f.contains(Flag::NEGATIVE)));
+			ui.text(format!("Half-carry: {}", f.contains(Flag::HALF_CARRY)));
+			ui.text(format!("Carry: {}", f.contains(Flag::FULL_CARRY)));
+			// ui.text(format!("Ticks: {}", self.gb.cpu.tick));
+			// ui.text(format!("Running: {}", self.run));
+			// ui.text(format!("Halted: {}", self.gb.cpu.halted));
 		});
 	}
 
@@ -59,7 +55,7 @@ impl Emulator {
 
 			Slider::new("##", 1, 16).build(ui, &mut 16);
 
-			let memory = &self.gb.cpu.memory;
+			let memory = self.gb.memory();
 
 			ChildWindow::new("memory").build(ui, || {
 				const TOTAL_ADDRESSES: usize = 0x10000;

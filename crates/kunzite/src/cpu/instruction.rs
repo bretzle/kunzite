@@ -6,7 +6,7 @@
 ///
 /// Eg. `Instruction::StoreImm16AddrSp` means that the `SP` register shoudl be stored at the address specified by the immediat 16 bit value
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub enum Instruction {
+pub(super) enum Instruction {
 	/// No operation.
 	Nop,
 	/// The Gameboy enters a very low-power STOP state, graphics will not continue to draw.
@@ -255,191 +255,9 @@ impl std::fmt::Debug for Instruction {
 	}
 }
 
-impl Instruction {
-	/// the number of bytes the instruction takes up
-	pub fn size(&self) -> u16 {
-		match self {
-			Instruction::Nop => 1,
-			Instruction::Stop => 2,
-			Instruction::Halt => 1,
-			Instruction::StoreImm16(_, _) => 3,
-			Instruction::StoreImm8(_, _) => 2,
-			Instruction::StoreAToHlAddr(_) => 1,
-			Instruction::LoadAFromHlAddr(_) => 1,
-			Instruction::StoreATo16(_) => 1,
-			Instruction::LoadAFromReg16Addr(_) => 1,
-			Instruction::Mov8(_, _) => 1,
-			Instruction::Jr(_, _) => 2,
-			Instruction::Jp(_, _) => 3,
-			Instruction::Inc8(_) => 1,
-			Instruction::Dec8(_) => 1,
-			Instruction::Inc16(_) => 1,
-			Instruction::Dec16(_) => 1,
-			Instruction::Push(_) => 1,
-			Instruction::Pop(_) => 1,
-			Instruction::Add(_) => 1,
-			Instruction::Adc(_) => 1,
-			Instruction::Sub(_) => 1,
-			Instruction::Sbc(_) => 1,
-			Instruction::And(_) => 1,
-			Instruction::Xor(_) => 1,
-			Instruction::Or(_) => 1,
-			Instruction::Cp(_) => 1,
-			Instruction::Add8(_) => 2,
-			Instruction::Adc8(_) => 2,
-			Instruction::Sub8(_) => 2,
-			Instruction::Sbc8(_) => 2,
-			Instruction::And8(_) => 2,
-			Instruction::Xor8(_) => 2,
-			Instruction::Or8(_) => 2,
-			Instruction::Cp8(_) => 2,
-			Instruction::AddSp8(_) => 2,
-			Instruction::Daa => 1,
-			Instruction::Scf => 1,
-			Instruction::Cpl => 1,
-			Instruction::Ccf => 1,
-			Instruction::Rlca => 1,
-			Instruction::Rla => 1,
-			Instruction::Rrca => 1,
-			Instruction::Rra => 1,
-			Instruction::StoreImm16AddrSp(_) => 3,
-			Instruction::AddHl(_) => 1,
-			Instruction::Ret(_) => 1,
-			Instruction::Reti => 1,
-			Instruction::Di => 1,
-			Instruction::Ei => 1,
-			Instruction::Call(_, _) => 3,
-			Instruction::JpHl => 1,
-			Instruction::Rst(_) => 1,
-			Instruction::LdHlSp8(_) => 2,
-			Instruction::LdSpHl => 1,
-			Instruction::StoreHA(_) => 2,
-			Instruction::LoadHA(_) => 2,
-			Instruction::StoreCA => 1,
-			Instruction::LoadCA => 1,
-			Instruction::StoreAAtAddress(_) => 3,
-			Instruction::LoadAFromAddress(_) => 3,
-			Instruction::Rlc(_) => 2,
-			Instruction::Rrc(_) => 2,
-			Instruction::Rr(_) => 2,
-			Instruction::Rl(_) => 2,
-			Instruction::Sla(_) => 2,
-			Instruction::Sra(_) => 2,
-			Instruction::Swap(_) => 2,
-			Instruction::Srl(_) => 2,
-			Instruction::Bit(_, _) => 2,
-			Instruction::Res(_, _) => 2,
-			Instruction::Set(_, _) => 2,
-		}
-	}
-
-	pub fn ticks(&self) -> u8 {
-		match self {
-			Instruction::Nop => 4,
-			Instruction::Stop => 4,
-			Instruction::Halt => 4,
-			Instruction::StoreImm16(_, _) => 12,
-			Instruction::StoreImm8(Register8::DerefHL, _) => 12,
-			Instruction::StoreImm8(_, _) => 8,
-			Instruction::StoreAToHlAddr(_) => 8,
-			Instruction::LoadAFromHlAddr(_) => 8,
-			Instruction::StoreATo16(_) => 8,
-			Instruction::LoadAFromReg16Addr(_) => 8,
-			Instruction::Mov8(Register8::DerefHL, Register8::DerefHL) => panic!(),
-			Instruction::Mov8(Register8::DerefHL, _) => 8,
-			Instruction::Mov8(_, Register8::DerefHL) => 8,
-			Instruction::Mov8(_, _) => 4,
-			Instruction::Jr(_, _) => 8,  // +4 if branch
-			Instruction::Jp(_, _) => 12, // +4 if branch
-			Instruction::Inc8(Register8::DerefHL) => 12,
-			Instruction::Dec8(Register8::DerefHL) => 12,
-			Instruction::Inc8(_) => 4,
-			Instruction::Dec8(_) => 4,
-			Instruction::Inc16(_) => 8,
-			Instruction::Dec16(_) => 8,
-			Instruction::Push(_) => 16,
-			Instruction::Pop(_) => 12,
-			Instruction::Add(Register8::DerefHL) => 8,
-			Instruction::Adc(Register8::DerefHL) => 8,
-			Instruction::Sub(Register8::DerefHL) => 8,
-			Instruction::Sbc(Register8::DerefHL) => 8,
-			Instruction::And(Register8::DerefHL) => 8,
-			Instruction::Xor(Register8::DerefHL) => 8,
-			Instruction::Or(Register8::DerefHL) => 8,
-			Instruction::Cp(Register8::DerefHL) => 8,
-			Instruction::Add(_) => 4,
-			Instruction::Adc(_) => 4,
-			Instruction::Sub(_) => 4,
-			Instruction::Sbc(_) => 4,
-			Instruction::And(_) => 4,
-			Instruction::Xor(_) => 4,
-			Instruction::Or(_) => 4,
-			Instruction::Cp(_) => 4,
-			Instruction::Add8(_) => 8,
-			Instruction::Adc8(_) => 8,
-			Instruction::Sub8(_) => 8,
-			Instruction::Sbc8(_) => 8,
-			Instruction::And8(_) => 8,
-			Instruction::Xor8(_) => 8,
-			Instruction::Or8(_) => 8,
-			Instruction::Cp8(_) => 8,
-			Instruction::AddSp8(_) => 16,
-			Instruction::Daa => 4,
-			Instruction::Scf => 4,
-			Instruction::Cpl => 4,
-			Instruction::Ccf => 4,
-			Instruction::Rlca => 4,
-			Instruction::Rla => 4,
-			Instruction::Rrca => 4,
-			Instruction::Rra => 4,
-			Instruction::StoreImm16AddrSp(_) => 20,
-			Instruction::AddHl(_) => 8,
-			Instruction::Ret(None) => 4,
-			Instruction::Ret(_) => 8, // +12 if ret happens
-			Instruction::Reti => 4,   // +12 when _ret() is called
-			Instruction::Di => 4,
-			Instruction::Ei => 4,
-			Instruction::Call(_, _) => 12, // +12 if call happens
-			Instruction::JpHl => 4,
-			Instruction::Rst(_) => 16,
-			Instruction::LdHlSp8(_) => todo!(),
-			Instruction::LdSpHl => todo!(),
-			Instruction::StoreHA(_) => 12,
-			Instruction::LoadHA(_) => 12,
-			Instruction::StoreCA => 8,
-			Instruction::LoadCA => 8,
-			Instruction::StoreAAtAddress(_) => 16,
-			Instruction::LoadAFromAddress(_) => 16,
-			// 0xCB prefix
-			Instruction::Rlc(Register8::DerefHL) => 16,
-			Instruction::Rrc(Register8::DerefHL) => 16,
-			Instruction::Rr(Register8::DerefHL) => 16,
-			Instruction::Rl(Register8::DerefHL) => 16,
-			Instruction::Sla(Register8::DerefHL) => 16,
-			Instruction::Sra(Register8::DerefHL) => 16,
-			Instruction::Swap(Register8::DerefHL) => 16,
-			Instruction::Srl(Register8::DerefHL) => 16,
-			Instruction::Bit(_, Register8::DerefHL) => 12,
-			Instruction::Res(_, Register8::DerefHL) => 16,
-			Instruction::Set(_, Register8::DerefHL) => 16,
-			Instruction::Rlc(_) => 8,
-			Instruction::Rrc(_) => 8,
-			Instruction::Rr(_) => 8,
-			Instruction::Rl(_) => 8,
-			Instruction::Sla(_) => 8,
-			Instruction::Sra(_) => 8,
-			Instruction::Swap(_) => 8,
-			Instruction::Srl(_) => 8,
-			Instruction::Bit(_, _) => 8,
-			Instruction::Res(_, _) => 8,
-			Instruction::Set(_, _) => 8,
-		}
-	}
-}
-
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub enum Register8 {
+pub(super) enum Register8 {
 	A,
 	B,
 	C,
@@ -469,7 +287,7 @@ impl std::fmt::Debug for Register8 {
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub enum Register16 {
+pub(super) enum Register16 {
 	BC,
 	DE,
 	HL,
@@ -477,21 +295,9 @@ pub enum Register16 {
 	SP,
 }
 
-impl Register16 {
-	pub fn tear(&self) -> (Register8, Register8) {
-		match self {
-			Register16::BC => (Register8::B, Register8::C),
-			Register16::DE => (Register8::D, Register8::E),
-			Register16::HL => (Register8::H, Register8::L),
-			Register16::AF => (Register8::A, Register8::F),
-			Register16::SP => unreachable!(),
-		}
-	}
-}
-
 /// CPU flags
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub enum Flag {
+pub(super) enum Flag {
 	/// Zero
 	Z,
 	/// Not Zero

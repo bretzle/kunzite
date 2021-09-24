@@ -26,6 +26,7 @@ pub fn unset_bit(byte: u8, bit: u8) -> u8 {
 	byte & !(1 << bit)
 }
 
+#[derive(Clone, Copy)]
 pub struct Color {
 	pub r: u8,
 	pub g: u8,

@@ -17,7 +17,7 @@ pub struct Gb {
 impl Gb {
 	/// Insert a rom into the gameboy
 	pub fn insert_rom<P: AsRef<Path>>(path: P) -> Result<Self> {
-		let file = File::open(path)?;
+		let mut file = File::open(path)?;
 		let mut buffer = vec![];
 		let _ = file.read_to_end(&mut buffer)?;
 
@@ -25,13 +25,17 @@ impl Gb {
 		let memory = Memory::from_cartridge(cartridge, false);
 
 		Ok(Self {
-			cpu: Cpu::default(),
+			cpu: Cpu::new(false),
 			memory,
 		})
 	}
 
 	/// fully execute the next instruction
 	pub fn step(&mut self) -> u8 {
-		self.cpu.step()
+		self.cpu.step(&mut self.memory) as u8
+	}
+
+	pub fn memory(&self) -> &Memory {
+		&self.memory
 	}
 }

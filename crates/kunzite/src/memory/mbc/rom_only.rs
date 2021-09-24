@@ -31,7 +31,7 @@ impl Mbc for RomOnly {
 		}
 	}
 
-	fn write_byte(&self, index: u16, val: u8) {
+	fn write_byte(&mut self, index: u16, val: u8) {
 		match index {
 			0x0000..=0x7FFF => (), // dont allow writing to the rom
 			0xA000..=0xBFFF => {

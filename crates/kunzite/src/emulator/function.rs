@@ -21,7 +21,7 @@ impl Emulator {
 			Step::InstCount(count) => {
 				for _ in 0..count {
 					if self.breakpoints.0
-						&& count > 1 && self.breakpoints.1.contains(&self.gb.cpu.pc)
+						&& count > 1 && self.breakpoints.1.contains(self.gb.cpu.pc())
 					{
 						self.run = false;
 						break;
