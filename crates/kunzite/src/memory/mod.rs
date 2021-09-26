@@ -156,7 +156,7 @@ impl Memory {
 		match index {
 			0x0000..=0x7FFF => self.mbc.read_byte(index),
 			0xA000..=0xBFFF => self.mbc.read_byte(index),
-			_ => panic!("{:04X}", index),
+			_ => panic!("tried to read: {:04X}", index),
 		}
 	}
 
@@ -164,7 +164,7 @@ impl Memory {
 		match index {
 			0x0000..=0x7FFF => self.mbc.write_byte(index, val),
 			0xA000..=0xBFFF => self.mbc.write_byte(index, val),
-			_ => panic!("{:04X}", index),
+			_ => panic!("tried to write: {:04X}", index),
 		}
 	}
 

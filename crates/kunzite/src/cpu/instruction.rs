@@ -1,12 +1,14 @@
 //! TODO: Document this
 
+use crate::cpu::Flag;
+
 /// Instructions that the Gameboy can execute
 ///
 /// Naming tends to be tof the form: `ActionDestSrc` when there is ambiguity
 ///
 /// Eg. `Instruction::StoreImm16AddrSp` means that the `SP` register shoudl be stored at the address specified by the immediat 16 bit value
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub(super) enum Instruction {
+#[derive(Clone, Copy)]
+pub enum Instruction {
 	/// No operation.
 	Nop,
 	/// The Gameboy enters a very low-power STOP state, graphics will not continue to draw.
@@ -257,7 +259,7 @@ impl std::fmt::Debug for Instruction {
 
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub(super) enum Register8 {
+pub enum Register8 {
 	A,
 	B,
 	C,
@@ -266,7 +268,6 @@ pub(super) enum Register8 {
 	H,
 	L,
 	DerefHL,
-	F,
 }
 
 impl std::fmt::Debug for Register8 {
@@ -280,34 +281,16 @@ impl std::fmt::Debug for Register8 {
 			Self::H => write!(f, "H"),
 			Self::L => write!(f, "L"),
 			Self::DerefHL => write!(f, "(HL)"),
-			Self::F => unreachable!(),
 		}
 	}
 }
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub(super) enum Register16 {
+pub enum Register16 {
 	BC,
 	DE,
 	HL,
 	AF,
 	SP,
-}
-
-/// CPU flags
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub(super) enum Flag {
-	/// Zero
-	Z,
-	/// Not Zero
-	NZ,
-	/// Subtract
-	N,
-	/// Half-carry
-	H,
-	/// Carry
-	C,
-	/// Not Carry
-	NC,
 }
