@@ -66,7 +66,7 @@ impl Application for Emulator {
 
 	fn update(&mut self, _frame_time: &Duration, _running: &mut bool) -> Result<(), Self::Error> {
 		if self.run {
-			self.step(Step::InstCount(1000));
+			self.step(Step::InstCount(10000));
 		}
 
 		Ok(())

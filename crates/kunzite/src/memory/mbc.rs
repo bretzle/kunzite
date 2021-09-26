@@ -1,6 +1,8 @@
 mod rom_only;
+mod mbc1;
 
 pub use rom_only::*;
+pub use mbc1::*;
 
 pub trait Mbc {
 	fn read_byte(&self, index: u16) -> u8;

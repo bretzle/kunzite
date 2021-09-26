@@ -90,6 +90,10 @@ impl Cpu {
 		RP[idx as usize]
 	}
 
+	pub(super) fn reg8(idx: u8) -> Register8 {
+		R[idx as usize]
+	}
+
 	pub(super) fn flag(idx: u8) -> Flag {
 		CC[idx as usize]
 	}

@@ -1,4 +1,7 @@
-use std::fmt::{Debug, UpperHex};
+use std::{
+	fmt::{Debug, UpperHex},
+	ops::BitOr,
+};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub struct Flag(u8);
@@ -35,12 +38,32 @@ impl Flag {
 		self.0
 	}
 
-	pub fn set(&mut self, bit: u8, val: bool) {
+	// fn bit(&self) -> u8 {
+	// 	match self {
+	// 		&Flag::ZERO => 7,
+	// 		&Flag::NEGATIVE => 6,
+	// 		&Flag::HALF_CARRY => 5,
+	// 		&Flag::FULL_CARRY => 4,
+	// 		_ => unreachable!(),
+	// 	}
+	// }
+
+	pub fn set(&mut self, flag: Self, val: bool) {
 		self.0 = if val {
-			crate::util::set_bit(self.0, bit)
+			// crate::util::set_bit(self.0, flag.bit())
+			self.0 | flag.bits()
 		} else {
-			crate::util::unset_bit(self.0, bit)
+			// crate::util::unset_bit(self.0, flag.bit())
+			self.0 & !flag.bits()
 		}
+	}
+
+	pub fn insert(&mut self, flag: Flag) {
+		self.set(flag, true)
+	}
+
+	pub fn remove(&mut self, flag: Flag) {
+		self.set(flag, false)
 	}
 }
 
@@ -51,6 +74,8 @@ impl Debug for Flag {
 			&Flag::NEGATIVE => write!(f, "N"),
 			&Flag::HALF_CARRY => write!(f, "H"),
 			&Flag::FULL_CARRY => write!(f, "C"),
+			&Flag::NOT_FULL_CARRY => write!(f, "NC"),
+			&Flag::NOT_ZERO => write!(f, "NZ"),
 			_ => panic!(),
 		}
 	}
@@ -59,6 +84,14 @@ impl Debug for Flag {
 impl UpperHex for Flag {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{:X}", self.0)
+	}
+}
+
+impl BitOr for Flag {
+	type Output = Self;
+
+	fn bitor(self, rhs: Self) -> Self::Output {
+		Self(self.0 | rhs.0)
 	}
 }
 
@@ -84,6 +117,7 @@ impl Registers {
 	pub fn set_af(&mut self, af: u16) {
 		self.a = (af >> 8) as u8;
 		self.f = Flag::new(af as u8);
+		// self.f = Flag::from_bits_truncate(af as u8);
 	}
 
 	pub fn get_bc(&self) -> u16 {
@@ -113,3 +147,4 @@ impl Registers {
 		self.h = (hl >> 8) as u8;
 	}
 }
+
